@@ -138,22 +138,15 @@
         <div class="col-lg-9 col-md-8">
 
             <!-- Toolbar -->
-            <div class="btn-toolbar mb-3 justify-content-center" role="toolbar">
-                <div class="btn-group me-2 mb-2" role="group">
-                    <button class="btn btn-primary" onclick="formatJSON()"><i class="bi bi-code-slash"></i> Format
+            <div class="btn-toolbar mb-3 " role="toolbar">
+                <div class="btn-group me-2 ms-1 mb-2" role="group">
+                    <button class="btn btn-success" onclick="validateJSON()"><i class="bi bi-check-circle"></i> Validate
+                    </button>
+                    <button class="btn btn-primary" onclick="expandJSON()"><i class="bi bi-arrows-expand"></i> Beautify
                     </button>
                     <button class="btn btn-secondary" onclick="minifyJSON()"><i class="bi bi-arrows-collapse"></i>
                         Minify
                     </button>
-                    <button class="btn btn-secondary" onclick="expandJSON()"><i class="bi bi-arrows-expand"></i> Expand
-                    </button>
-                </div>
-                <div class="btn-group me-2 mb-2" role="group">
-                    <button class="btn btn-success" onclick="validateJSON()"><i class="bi bi-check-circle"></i> Validate
-                    </button>
-                    <button class="btn btn-info" onclick="decodeUnicode()"><i class="bi bi-translate"></i> Decode
-                    </button>
-                    <button class="btn btn-warning" onclick="fixJSON()"><i class="bi bi-wrench"></i> Fix</button>
                 </div>
                 <div class="btn-group mb-2" role="group">
                     <button class="btn btn-success" onclick="saveToHistory()"><i class="bi bi-save"></i> Save</button>
