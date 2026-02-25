@@ -31,22 +31,22 @@
                     JSON Parse, History
                     <br><small><strong>Shortcuts:</strong> Ctrl+Enter Format | Ctrl+M Minify | Ctrl+F Search</small>
                     <!-- Stats -->
-                    <div id="stats" class="row g-3 justify-content-center d-none">
+                    <div id="stats" class="row justify-content-center d-none">
                         <div class="col-auto">
-                            <div class="card card-dark text-center py-2">
-                                <div class="text-cyan fs-4 fw-bold" id="statKeys">0</div>
+                            <div class="card card-dark text-center py-2 border-0">
+                                <div class="fs-4 fw-bold" id="statKeys">0</div>
                                 <small class="text-muted">Keys</small>
                             </div>
                         </div>
                         <div class="col-auto">
-                            <div class="card card-dark text-center py-2">
-                                <div class="text-cyan fs-4 fw-bold" id="statDepth">0</div>
+                            <div class="card card-dark text-center py-2 border-0">
+                                <div class="fs-4 fw-bold" id="statDepth">0</div>
                                 <small class="text-muted">Depth</small>
                             </div>
                         </div>
                         <div class="col-auto">
-                            <div class="card card-dark text-center py-2">
-                                <div class="text-cyan fs-4 fw-bold" id="statSize">0</div>
+                            <div class="card card-dark text-center py-2 border-0">
+                                <div class="fs-4 fw-bold" id="statSize">0</div>
                                 <small class="text-muted">Bytes</small>
                             </div>
                         </div>
@@ -137,26 +137,6 @@
         <!-- Main Content -->
         <div class="col-lg-9 col-md-8">
 
-            <!-- Toolbar -->
-            <div class="btn-toolbar mb-3 " role="toolbar">
-                <div class="btn-group me-2 ms-1 mb-2" role="group">
-                    <button class="btn btn-success" onclick="validateJSON()"><i class="bi bi-check-circle"></i> Validate
-                    </button>
-                    <button class="btn btn-primary" onclick="expandJSON()"><i class="bi bi-arrows-expand"></i> Beautify
-                    </button>
-                    <button class="btn btn-secondary" onclick="minifyJSON()"><i class="bi bi-arrows-collapse"></i>
-                        Minify
-                    </button>
-                </div>
-                <div class="btn-group mb-2" role="group">
-                    <button class="btn btn-success" onclick="saveToHistory()"><i class="bi bi-save"></i> Save</button>
-                    <button class="btn btn-danger" onclick="clearAll()"><i class="bi bi-trash"></i> Clear</button>
-                    <button class="btn btn-secondary" onclick="loadSample()"><i class="bi bi-file-earmark-code"></i>
-                        Sample
-                    </button>
-                </div>
-            </div>
-
             <!-- Status -->
             <div id="status" class="alert d-none mb-3" role="alert"></div>
 
@@ -165,10 +145,19 @@
                 <div class="col-md-6 mb-3">
                     <div class="card card-dark">
                         <div class="card-header d-flex justify-content-between align-items-center py-2">
-                            <span><i class="bi bi-input-cursor-text"></i> Input</span>
-                            <button class="btn btn-outline-light btn-sm" onclick="pasteFromClipboard()">
-                                <i class="bi bi-clipboard"></i> Paste
-                            </button>
+                            <span>Input</span>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-dark btn-sm" onclick="validateJSON()"><i
+                                        class="bi bi-check-circle"></i> Validate
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="expandJSON()"><i
+                                        class="bi bi-arrows-expand"></i> Beautify
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="minifyJSON()"><i
+                                        class="bi bi-arrows-collapse"></i>
+                                    Minify
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body p-0">
                             <textarea id="input" class="json-editor w-100 p-3" style="height: 650px;"
@@ -180,9 +169,18 @@
                     <div class="card card-dark">
                         <div class="card-header d-flex justify-content-between align-items-center py-2">
                             <span><i class="bi bi-output"></i> Output</span>
-                            <button class="btn btn-outline-light btn-sm" onclick="copyOutput()">
-                                <i class="bi bi-copy"></i> Copy
-                            </button>
+
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-dark btn-sm" onclick="saveToHistory()"><i
+                                        class="bi bi-save"></i> Save
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="copyOutput()"><i
+                                        class="bi bi-copy"></i> Copy
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="clearAll()"><i
+                                        class="bi bi-trash"></i> Clear
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body p-0">
                             <div id="output" class="p-3"></div>
