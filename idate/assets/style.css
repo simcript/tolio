@@ -1,0 +1,333 @@
+:root {
+    --bs-body-bg: #0f172a;
+    --bs-body-color: #f1f5f9;
+    --primary-gradient: #0CA3FF;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    min-height: 100vh;
+}
+
+/* Animated background */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.container {
+    position: relative;
+    z-index: 1;
+}
+
+/* Header */
+.page-header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    animation: fadeInDown 0.6s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-title {
+    font-size: 3rem;
+    font-weight: 700;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: #cbd5e1;
+    font-size: 1.1rem;
+    font-weight: 300;
+}
+
+/* Current time card */
+.current-time-card {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.current-time-card h6 {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.time-display {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.time-badge {
+    display: inline-block;
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+    font-weight: 600;
+}
+
+.time-badge.system {
+    background: rgba(255, 165, 0, 0.2);
+    color: #ffa600;
+}
+
+/* Cards */
+.custom-card {
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.custom-card:hover {
+    border-color: #6366f1;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2);
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-gradient);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+/* Form controls */
+.form-control, .form-select {
+    background: #334155;
+    border: 2px solid #475569;
+    color: #f1f5f9;
+    font-family: 'Roboto Mono', monospace;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background: #334155;
+    border-color: #6366f1;
+    color: #f1f5f9;
+    box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+}
+
+.form-control::placeholder {
+    color: #64748b;
+}
+
+.form-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+/* Tabs */
+.nav-tabs {
+    border-bottom: 2px solid #334155;
+}
+
+.nav-tabs .nav-link {
+    color: #cbd5e1;
+    border: none;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #f1f5f9;
+    border-color: transparent;
+}
+
+.nav-tabs .nav-link.active {
+    background: transparent;
+    color: #6366f1;
+    border-bottom-color: #6366f1;
+}
+
+/* Buttons */
+.btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4);
+}
+
+.btn-secondary {
+    background: #334155;
+    border: 2px solid #475569;
+    color: #f1f5f9;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-secondary:hover {
+    background: #475569;
+    border-color: #6366f1;
+    color: #f1f5f9;
+}
+
+/* Results */
+.result-card {
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
+    padding: 12px;
+}
+
+.result-card:hover {
+    border-color: #10b981;
+    transform: translateX(5px);
+}
+
+.result-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.result-value {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.format-item {
+    background: #334155;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.format-label {
+    color: #64748b;
+}
+
+.format-value {
+    font-family: 'Roboto Mono', monospace;
+    color: #f1f5f9;
+    font-weight: 500;
+}
+
+/* Copy button */
+.copy-btn {
+    padding: 0.4rem 0.8rem;
+    background: #334155;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+    background: #6366f1;
+    color: white;
+    border-color: #6366f1;
+}
+
+.copy-btn.copied {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+}
+
+/* Radio buttons */
+.form-check-input {
+    background-color: #334155;
+    border: 2px solid #475569;
+}
+
+.form-check-input:checked {
+    background-color: #6366f1;
+    border-color: #6366f1;
+}
+
+.form-check-input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+}
+
+.form-check-label {
+    color: #cbd5e1;
+}
+
+/* Checkbox */
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-title {
+        font-size: 2rem;
+    }
+
+    .time-display {
+        font-size: 1.2rem;
+    }
+}

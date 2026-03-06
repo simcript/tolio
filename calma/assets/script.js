@@ -720,3 +720,6 @@ document.addEventListener('keydown', e => {
         calc.inp(k.toUpperCase());
     }
 });
+window.addEventListener('load', function() {
+    CalcManager.add();
+});
