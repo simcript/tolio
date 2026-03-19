@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colorfy | Advanced Color Picker</title>
+    <link rel="icon"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+    <link rel="stylesheet" href="assets/style.css">
+
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Colorfy</h1>
+            <p class="subtitle">Pick colors, create gradients, and export in any format</p>
+        </header>
+
+        <div class="main-layout">
+            <!-- Color Picker Card -->
+            <div class="card">
+                <h2 class="card-title">Color Picker</h2>
+                
+                <div class="tabs">
+                    <button class="tab active" data-mode="hsv">HSV/HSB</button>
+                    <button class="tab" data-mode="hsl">HSL</button>
+                    <button class="tab" data-mode="wheel">Wheel</button>
+                    <button class="tab" data-mode="rgb">RGB</button>
+                </div>
+
+                <div class="picker-container">
+                    <!-- HSV Mode -->
+                    <div id="hsv-picker" class="tab-content active">
+                        <div class="color-area" id="hsv-area">
+                            <div class="color-area-pointer" id="hsv-pointer"></div>
+                        </div>
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>Hue</span>
+                                <span class="slider-value" id="hue-value">0°</span>
+                            </div>
+                            <div class="slider-track hue-slider" id="hue-slider">
+                                <div class="slider-thumb" id="hue-thumb"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HSL Mode -->
+                    <div id="hsl-picker" class="tab-content">
+                        <div class="color-area" id="hsl-area">
+                            <div class="color-area-pointer" id="hsl-pointer"></div>
+                        </div>
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>Hue</span>
+                                <span class="slider-value" id="hsl-hue-value">0°</span>
+                            </div>
+                            <div class="slider-track hue-slider" id="hsl-hue-slider">
+                                <div class="slider-thumb" id="hsl-hue-thumb"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wheel Mode -->
+                    <div id="wheel-picker" class="tab-content">
+                        <div class="wheel-container">
+                            <canvas class="color-wheel" id="color-wheel" width="280" height="280"></canvas>
+                            <div class="wheel-pointer" id="wheel-pointer"></div>
+                        </div>
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>Lightness</span>
+                                <span class="slider-value" id="wheel-lightness-value">50%</span>
+                            </div>
+                            <div class="slider-track" id="lightness-slider">
+                                <div class="slider-thumb" id="lightness-thumb"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RGB Mode -->
+                    <div id="rgb-picker" class="tab-content">
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>Red</span>
+                                <span class="slider-value" id="r-value">128</span>
+                            </div>
+                            <div class="slider-track" id="r-slider">
+                                <div class="slider-thumb" id="r-thumb"></div>
+                            </div>
+                        </div>
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>Green</span>
+                                <span class="slider-value" id="g-value">128</span>
+                            </div>
+                            <div class="slider-track" id="g-slider">
+                                <div class="slider-thumb" id="g-thumb"></div>
+                            </div>
+                        </div>
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>Blue</span>
+                                <span class="slider-value" id="b-value">128</span>
+                            </div>
+                            <div class="slider-track" id="b-slider">
+                                <div class="slider-thumb" id="b-thumb"></div>
+                            </div>
+                        </div>
+                        <div style="height: 100px;"></div>
+                    </div>
+
+                    <!-- Alpha Slider -->
+                    <div class="slider-group" style="margin-top: 15px;">
+                        <div class="slider-label">
+                            <span>Alpha</span>
+                            <span class="slider-value" id="alpha-value">100%</span>
+                        </div>
+                        <div class="slider-track alpha-slider" id="alpha-slider">
+                            <div class="slider-thumb" id="alpha-thumb"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color Preview -->
+                <div class="color-preview-section">
+                    <div class="color-preview">
+                        <div class="color-preview-inner" id="color-preview"></div>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name" id="color-name">Indigo</div>
+                        <div class="color-description" id="color-description">A vibrant purple-blue</div>
+                    </div>
+                </div>
+
+                <!-- Color Harmony -->
+                <div class="harmony-section">
+                    <div class="slider-label">
+                        <span>Color Harmony (click to copy)</span>
+                        <select id="harmony-type" style="padding: 4px 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.8rem;">
+                            <option value="complementary">Complementary</option>
+                            <option value="analogous">Analogous</option>
+                            <option value="triadic">Triadic</option>
+                            <option value="split">Split Complementary</option>
+                            <option value="tetradic">Tetradic</option>
+                            <option value="monochromatic">Monochromatic</option>
+                        </select>
+                    </div>
+                    <div class="harmony-colors" id="harmony-colors"></div>
+                    <div class="harmony-actions">
+                        <button class="btn btn-secondary" onclick="copyAllHarmonyColors()">📋 Copy All</button>
+                        <button class="btn btn-secondary" onclick="applyHarmonyToGradient()">🌈 Apply to Gradient</button>
+                    </div>
+                </div>
+
+                <!-- Save Color -->
+                <div style="margin-top: 20px;">
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveColor()">💾 Save Color</button>
+                        <button class="btn btn-secondary" onclick="randomColor()">🎲 Random</button>
+                    </div>
+                    <div class="saved-colors" id="saved-colors"></div>
+                </div>
+            </div>
+
+            <!-- Color Codes Card -->
+            <div class="card">
+                <h2 class="card-title">Color Codes <span id="viewing-indicator" style="display:none; font-size: 0.75rem; font-weight: 400; color: var(--warning); margin-left: 10px;">👁 Viewing harmony color</span></h2>
+                
+                <div id="viewing-color-bar" style="display:none; margin-bottom: 15px; padding: 10px 15px; background: var(--bg-tertiary); border-radius: 10px; border: 2px solid var(--warning); display: none;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div id="viewing-color-preview" style="width: 40px; height: 40px; border-radius: 8px; border: 2px solid white;"></div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Viewing Harmony Color</div>
+                            <div id="viewing-color-hex" style="font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 600;"></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="setHarmonyAsMain()" style="padding: 6px 12px; font-size: 0.8rem;">🎨 Use as Main</button>
+                        <button class="btn btn-secondary" onclick="clearViewingColor()" style="padding: 6px 12px; font-size: 0.8rem;">✕ Back</button>
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>R</label>
+                        <input type="number" id="input-r" min="0" max="255" value="99">
+                    </div>
+                    <div class="input-group">
+                        <label>G</label>
+                        <input type="number" id="input-g" min="0" max="255" value="102">
+                    </div>
+                    <div class="input-group">
+                        <label>B</label>
+                        <input type="number" id="input-b" min="0" max="255" value="241">
+                    </div>
+                    <div class="input-group">
+                        <label>A</label>
+                        <input type="number" id="input-a" min="0" max="100" value="100">
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>H</label>
+                        <input type="number" id="input-h" min="0" max="360" value="239">
+                    </div>
+                    <div class="input-group">
+                        <label>S</label>
+                        <input type="number" id="input-s" min="0" max="100" value="84">
+                    </div>
+                    <div class="input-group">
+                        <label>L</label>
+                        <input type="number" id="input-l" min="0" max="100" value="67">
+                    </div>
+                    <div class="input-group">
+                        <label>HEX</label>
+                        <input type="text" id="input-hex" value="#6366F1" maxlength="9">
+                    </div>
+                </div>
+
+                <div class="color-codes">
+                    <div class="code-row">
+                        <span class="code-label">HEX</span>
+                        <span class="code-value" id="code-hex">#6366F1</span>
+                        <button class="copy-btn" onclick="copyCode('hex', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">HEX8</span>
+                        <span class="code-value" id="code-hex8">#6366F1FF</span>
+                        <button class="copy-btn" onclick="copyCode('hex8', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">RGB</span>
+                        <span class="code-value" id="code-rgb">rgb(99, 102, 241)</span>
+                        <button class="copy-btn" onclick="copyCode('rgb', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">RGBA</span>
+                        <span class="code-value" id="code-rgba">rgba(99, 102, 241, 1)</span>
+                        <button class="copy-btn" onclick="copyCode('rgba', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">HSL</span>
+                        <span class="code-value" id="code-hsl">hsl(239, 84%, 67%)</span>
+                        <button class="copy-btn" onclick="copyCode('hsl', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">HSLA</span>
+                        <span class="code-value" id="code-hsla">hsla(239, 84%, 67%, 1)</span>
+                        <button class="copy-btn" onclick="copyCode('hsla', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">HSV</span>
+                        <span class="code-value" id="code-hsv">hsv(239, 59%, 95%)</span>
+                        <button class="copy-btn" onclick="copyCode('hsv', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">HSB</span>
+                        <span class="code-value" id="code-hsb">hsb(239, 59%, 95%)</span>
+                        <button class="copy-btn" onclick="copyCode('hsb', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">CMYK</span>
+                        <span class="code-value" id="code-cmyk">cmyk(59%, 58%, 0%, 5%)</span>
+                        <button class="copy-btn" onclick="copyCode('cmyk', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">LAB</span>
+                        <span class="code-value" id="code-lab">lab(52, 38, -75)</span>
+                        <button class="copy-btn" onclick="copyCode('lab', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">LCH</span>
+                        <span class="code-value" id="code-lch">lch(52, 84, 297)</span>
+                        <button class="copy-btn" onclick="copyCode('lch', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">HWB</span>
+                        <span class="code-value" id="code-hwb">hwb(239, 39%, 5%)</span>
+                        <button class="copy-btn" onclick="copyCode('hwb', this)">Copy</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gradient Section -->
+            <div class="card gradient-section">
+                <h2 class="card-title">Gradient Generator</h2>
+                
+                <div class="gradient-preview" id="gradient-preview">
+                    <div class="gradient-stops" id="gradient-stops"></div>
+                </div>
+
+                <div class="gradient-controls">
+                    <div class="control-group">
+                        <label>Gradient Type</label>
+                        <select id="gradient-type">
+                            <option value="linear">Linear</option>
+                            <option value="radial">Radial</option>
+                            <option value="conic">Conic</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Direction / Angle</label>
+                        <select id="gradient-direction">
+                            <option value="to right">To Right (→)</option>
+                            <option value="to left">To Left (←)</option>
+                            <option value="to bottom">To Bottom (↓)</option>
+                            <option value="to top">To Top (↑)</option>
+                            <option value="to bottom right">To Bottom Right (↘)</option>
+                            <option value="to bottom left">To Bottom Left (↙)</option>
+                            <option value="to top right">To Top Right (↗)</option>
+                            <option value="to top left">To Top Left (↖)</option>
+                            <option value="45deg">45°</option>
+                            <option value="90deg">90°</option>
+                            <option value="135deg">135°</option>
+                            <option value="180deg">180°</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Radial Shape</label>
+                        <select id="radial-shape">
+                            <option value="circle">Circle</option>
+                            <option value="ellipse">Ellipse</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Radial Position</label>
+                        <select id="radial-position">
+                            <option value="center">Center</option>
+                            <option value="top">Top</option>
+                            <option value="bottom">Bottom</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="btn-group" style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="addGradientStop()">➕ Add Stop</button>
+                    <button class="btn btn-secondary" onclick="useCurrentColor()">🎨 Use Current Color</button>
+                    <button class="btn btn-secondary" onclick="reverseGradient()">🔄 Reverse</button>
+                    <button class="btn btn-secondary" onclick="randomGradient()">🎲 Random</button>
+                </div>
+
+                <div class="color-codes">
+                    <div class="code-row">
+                        <span class="code-label">CSS</span>
+                        <span class="code-value" id="gradient-css" style="font-size: 0.8rem;">linear-gradient(to right, #6366f1, #a855f7)</span>
+                        <button class="copy-btn" onclick="copyGradient('css', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">Tailwind</span>
+                        <span class="code-value" id="gradient-tailwind" style="font-size: 0.8rem;">bg-gradient-to-r from-[#6366f1] to-[#a855f7]</span>
+                        <button class="copy-btn" onclick="copyGradient('tailwind', this)">Copy</button>
+                    </div>
+                    <div class="code-row">
+                        <span class="code-label">SVG</span>
+                        <span class="code-value" id="gradient-svg" style="font-size: 0.75rem;">&lt;linearGradient&gt;...&lt;/linearGradient&gt;</span>
+                        <button class="copy-btn" onclick="copyGradient('svg', this)">Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-color" id="toast-color"></div>
+        <span id="toast-text">Color copied!</span>
+    </div>
+    <script src="assets/script.js"></script>
+</body>
+</html>
