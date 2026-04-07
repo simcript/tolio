@@ -364,11 +364,78 @@ function togglePlay() {
 
 // Next/Previous Track
 function nextTrack() {
-    // Implementation for next track
+    if (!currentSong) return;
+
+    let currentArray = getSongs();
+    let sourceParam = 0;
+    let listIndex = null;
+
+    if (currentPlaylist !== null) {
+        const playlists = getPlaylists();
+        const categories = getCategories();
+
+        if (playlists[currentPlaylist] && playlists[currentPlaylist].songs.some(s => s.link === currentSong.link)) {
+            currentArray = playlists[currentPlaylist].songs;
+            sourceParam = 2; // Source 2 = Playlist
+            listIndex = currentPlaylist;
+        } else if (categories[currentPlaylist] && categories[currentPlaylist].songs.some(s => s.link === currentSong.link)) {
+            currentArray = categories[currentPlaylist].songs;
+            sourceParam = 1; // Source 1 = Category
+            listIndex = currentPlaylist;
+        }
+    }
+
+    let currentIndex = currentArray.findIndex(s => s.link === currentSong.link);
+
+    if (currentIndex === -1) {
+        currentArray = getSongs();
+        sourceParam = 0; // Source 0 = Default List
+        listIndex = null;
+        currentIndex = currentArray.findIndex(s => s.link === currentSong.link);
+    }
+
+    if (currentIndex !== -1) {
+        let nextIndex = (currentIndex + 1) % currentArray.length;
+        playSong(nextIndex, listIndex, sourceParam);
+    }
 }
 
 function previousTrack() {
-    // Implementation for previous track
+    if (!currentSong) return;
+
+    let currentArray = getSongs();
+    let sourceParam = 0;
+    let listIndex = null;
+
+    if (currentPlaylist !== null) {
+        const playlists = getPlaylists();
+        const categories = getCategories();
+
+        if (playlists[currentPlaylist] && playlists[currentPlaylist].songs.some(s => s.link === currentSong.link)) {
+            currentArray = playlists[currentPlaylist].songs;
+            sourceParam = 2;
+            listIndex = currentPlaylist;
+        } else if (categories[currentPlaylist] && categories[currentPlaylist].songs.some(s => s.link === currentSong.link)) {
+            currentArray = categories[currentPlaylist].songs;
+            sourceParam = 1;
+            listIndex = currentPlaylist;
+        }
+    }
+
+    let currentIndex = currentArray.findIndex(s => s.link === currentSong.link);
+
+    if (currentIndex === -1) {
+        currentArray = getSongs();
+        sourceParam = 0;
+        listIndex = null;
+        currentIndex = currentArray.findIndex(s => s.link === currentSong.link);
+    }
+
+    // پخش آهنگ قبلی (با قابلیت چرخش به آهنگ آخر در صورت رسیدن به ابتدای لیست)
+    if (currentIndex !== -1) {
+        let prevIndex = (currentIndex - 1 + currentArray.length) % currentArray.length;
+        playSong(prevIndex, listIndex, sourceParam);
+    }
 }
 
 // ADD TO Playlist Modal

@@ -71,9 +71,9 @@ function main () {
             $songs[] = $list[rand(0, count($list) - 1)];
         }
         shuffle($songs);
-        file_put_contents(__DIR__ . '/assets/categories.json', json_encode($playlists));
-        file_put_contents(__DIR__ . '/assets/playlists.json', json_encode([]));
-        file_put_contents(__DIR__ . '/assets/songs.json', json_encode($songs));
+        file_put_contents(__DIR__ . '/assets/categories.log', json_encode($playlists));
+        file_put_contents(__DIR__ . '/assets/playlists.log', json_encode([]));
+        file_put_contents(__DIR__ . '/assets/songs.log', json_encode($songs));
         file_put_contents($timeFile, time());
     } catch (\Exception $e) {
         file_put_contents(__DIR__ . '/assets/error.log', $e->getMessage() . PHP_EOL, FILE_APPEND);

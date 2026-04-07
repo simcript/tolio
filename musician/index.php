@@ -93,9 +93,9 @@
 </div>
 <script>
     // Default Songs
-    var defaultSongs = <?=file_get_contents('assets/songs.json')?>;
-    var defaultCategories = <?=file_get_contents('assets/categories.json')?>;
-    var defaultPlaylists = <?=file_get_contents('assets/playlists.json')?>;
+    var defaultSongs = <?=file_get_contents('assets/songs.log')?>;
+    var defaultCategories = <?=file_get_contents('assets/categories.log')?>;
+    var defaultPlaylists = <?=file_get_contents('assets/playlists.log')?>;
 </script>
 <script src="assets/script.js"></script>
 </body>
