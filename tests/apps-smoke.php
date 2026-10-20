@@ -57,6 +57,7 @@ $apps = [
     'musician' => 'Musician | Music Player',
     'onregex' => 'OnRegex',
     'red-json' => 'Red JSON',
+    'kalaqpar' => 'کلاغ‌پر',
 ];
 $assets = [];
 $routes = 0;

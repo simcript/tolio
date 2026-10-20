@@ -5,3 +5,7 @@
 /.idea
 /.vscode
 .idea/*.xml
+# Kalaghpār runtime artifacts (never commit the game database)
+src/Modules/Kalaqpar/Files/*.sqlite
+src/Modules/Kalaqpar/Files/*.sqlite-[0-9]*
+src/Modules/Kalaqpar/Files/worker-health.json

@@ -1,0 +1,205 @@
+/* =========================================================================
+   Kalaqpar (کلاغ‌پر) — all styles are scoped under .klq-app/.klq-* so they
+   can never leak into other apps of the suite. Mobile-first, RTL.
+   Bootstrap itself is reused from the host installation (see layout.php).
+   ========================================================================= */
+
+.klq-app {
+    --klq-bg: #12131a;
+    --klq-panel: #1a1c26;
+    --klq-panel-2: #212430;
+    --klq-ink: #edefff;
+    --klq-muted: #9aa3c0;
+    --klq-accent: #ffbf47;
+    --klq-accent-ink: #241a02;
+    --klq-good: #57d9a3;
+    --klq-bad: #ff8080;
+    --klq-edge: #30334a;
+
+    min-height: 100vh;
+    color: var(--klq-ink);
+    background:
+        radial-gradient(1200px 500px at 70% -10%, rgba(255, 191, 71, .07), transparent 60%),
+        radial-gradient(900px 420px at 0% 0%, rgba(87, 115, 255, .05), transparent 55%),
+        var(--klq-bg);
+}
+
+/* Persian text with a crisp system font stack */
+.klq-app, .klq-app button, .klq-app input, .klq-app select, .klq-app textarea {
+    font-family: "Vazirmatn", "IRANSansX", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+}
+
+.klq-card {
+    background: var(--klq-panel);
+    border: 1px solid var(--klq-edge);
+    border-radius: 1rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+}
+
+.klq-card .card-body { padding: 1rem; }
+@media (min-width: 768px) { .klq-card .card-body { padding: 1.25rem; } }
+
+.klq-btn {
+    color: var(--klq-accent-ink) !important;
+    background: var(--klq-accent) !important;
+    border: 0 !important;
+    font-weight: 700;
+    border-radius: .65rem !important;
+}
+
+.klq-btn:disabled { opacity: .45; }
+
+.klq-btn-ghost {
+    color: var(--klq-accent) !important;
+    border-color: var(--klq-accent) !important;
+}
+
+.klq-logo { font-size: 3.2rem; line-height: 1; }
+.klq-hero h1 { color: var(--klq-accent); letter-spacing: -0.5px; }
+
+.klq-badge {
+    background: var(--klq-panel-2);
+    color: var(--klq-accent);
+    border: 1px dashed var(--klq-accent);
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: copy;
+}
+
+.klq-code-input, .klq-guess-input { letter-spacing: .35em; }
+
+.klq-table { color: var(--klq-ink); }
+.klq-table th, .klq-table td { border-color: var(--klq-edge); }
+.klq-rank { color: var(--klq-muted); }
+.klq-gold { color: var(--klq-accent); font-weight: 700; }
+
+/* Rooms list ---------------------------------------------------------- */
+
+.klq-rooms .klq-room-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .7rem .85rem;
+    border: 1px solid var(--klq-edge);
+    border-radius: .8rem;
+    background: var(--klq-panel-2);
+    margin-bottom: .6rem;
+}
+
+.klq-room-row .klq-room-name { font-weight: 700; }
+.klq-room-row .klq-room-meta { color: var(--klq-muted); font-size: .82rem; }
+.klq-rooms-empty { color: var(--klq-muted); }
+
+.klq-state-badge { font-size: .75rem; }
+
+/* Game board ----------------------------------------------------------- */
+
+.klq-status { color: var(--klq-muted); min-height: 1.4em; font-weight: 500; }
+
+.klq-word {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem;
+    direction: ltr; /* glyphs of Persian words are composed RTL, boxes order handled by DOM order */
+}
+
+.klq-letter {
+    width: 2.6rem;
+    height: 2.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.7rem;
+    font-weight: 700;
+    border-radius: .55rem;
+    border: 2px solid var(--klq-edge);
+    background: var(--klq-panel-2);
+}
+
+.klq-letter.is-revealed {
+    border-color: var(--klq-accent);
+    color: var(--klq-accent);
+    animation: klq-pop .25s ease-out;
+}
+
+.klq-letter.is-empty { visibility: hidden; }
+
+@keyframes klq-pop {
+    from { transform: scale(.6); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+.klq-timer {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--klq-accent);
+}
+
+.klq-guess .input-group { max-width: 30rem; }
+
+.klq-players .klq-player {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .4rem .5rem;
+    border-radius: .5rem;
+}
+
+.klq-players .klq-player + .klq-player { border-top: 1px solid var(--klq-edge); }
+
+.klq-player .klq-online {
+    width: .5rem; height: .5rem;
+    border-radius: 50%;
+    background: var(--klq-muted);
+    display: inline-block;
+}
+
+.klq-player .klq-online.is-on { background: var(--klq-good); }
+
+.klq-player.is-host::after {
+    content: "میزبان";
+    font-size: .7rem;
+    color: var(--klq-accent);
+    border: 1px solid var(--klq-accent);
+    border-radius: 999px;
+    padding: 0 .45rem;
+}
+
+.klq-player.is-winner .klq-score { color: var(--klq-good); font-weight: 700; }
+
+.klq-room-scores li { display: flex; justify-content: space-between; padding: .15rem 0; }
+
+/* Toasts --------------------------------------------------------------- */
+
+.klq-toast-wrap {
+    position: fixed;
+    inset-inline-start: 1rem;
+    bottom: 1rem;
+    z-index: 1080;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    max-width: min(22rem, calc(100vw - 2rem));
+}
+
+.klq-toast {
+    background: var(--klq-panel-2);
+    color: var(--klq-ink);
+    border: 1px solid var(--klq-edge);
+    border-radius: .7rem;
+    padding: .6rem .9rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    font-size: .9rem;
+}
+
+.klq-toast.is-error { border-color: rgba(255, 128, 128, .55); color: var(--klq-bad); }
+.klq-toast.is-good { border-color: rgba(87, 217, 163, .55); color: var(--klq-good); }
+
+/* Small screens: keep the composer reachable and readable */
+@media (max-width: 576px) {
+    .klq-letter { width: 2.1rem; height: 2.4rem; font-size: 1.35rem; }
+    .klq-guess .klq-guess-input { font-size: 1.05rem; }
+    .klq-room-row { flex-direction: column; align-items: stretch; }
+}
