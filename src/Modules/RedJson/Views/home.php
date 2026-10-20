@@ -1,0 +1,183 @@
+<?php $this->start('content') ?>
+
+<!-- Main Content -->
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-lg-3 col-md-4 mb-4 mb-lg-0">
+            <!-- Options Card -->
+            <div class="card mb-3">
+                <div class="card-header py-2">
+                    <i class="bi bi-info-circle"></i> Info
+                </div>
+                <div class="card-body py-2">
+                    <h2 class="text-center text-danger mb-4">
+                        <img src="/apps/red-json/assets/favicon.ico"/> Red JSON
+                    </h2>
+                    JSON Formatter<br/>
+                    <strong>Features:</strong> Format, Minify, Expand, Search & Replace (Regex), Unicode Decode, Nested
+                    JSON Parse, History
+                    <br><small><strong>Shortcuts:</strong> Ctrl+Enter Format | Ctrl+M Minify | Ctrl+F Search</small>
+                    <!-- Stats -->
+                    <div id="stats" class="row justify-content-center d-none">
+                        <div class="col-auto">
+                            <div class="card card-dark text-center py-2 border-0">
+                                <div class="fs-4 fw-bold" id="statKeys">0</div>
+                                <small class="text-muted">Keys</small>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card card-dark text-center py-2 border-0">
+                                <div class="fs-4 fw-bold" id="statDepth">0</div>
+                                <small class="text-muted">Depth</small>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card card-dark text-center py-2 border-0">
+                                <div class="fs-4 fw-bold" id="statSize">0</div>
+                                <small class="text-muted">Bytes</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Options Card -->
+            <div class="card mb-3">
+                <div class="card-header py-2">
+                    <i class="bi bi-gear"></i> Options
+                </div>
+                <div class="card-body py-2">
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Indent:</label>
+                        <select id="indentSize" class="form-select form-select-sm">
+                            <option value="2">2 spaces</option>
+                            <option value="4" selected>4 spaces</option>
+                            <option value="tab">Tab</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Sort Keys:</label>
+                        <select id="sortKeys" class="form-select form-select-sm">
+                            <option value="none">None</option>
+                            <option value="asc">Ascending (A-Z)</option>
+                            <option value="desc">Descending (Z-A)</option>
+                        </select>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="parseNested" checked>
+                        <label class="form-check-label small" for="parseNested">Parse Nested JSON</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search & Replace Card -->
+            <div class="card mb-3">
+                <div class="card-header py-2">
+                    <i class="bi bi-search"></i> Search & Replace
+                </div>
+                <div class="card-body py-2">
+                    <div class="mb-2">
+                        <input type="text" id="searchText" class="form-control form-control-sm" placeholder="Search...">
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" id="replaceText" class="form-control form-control-sm"
+                               placeholder="Replace with...">
+                    </div>
+                    <div class="d-flex gap-1 mb-2">
+                        <button class="btn btn-primary btn-sm flex-fill" onclick="findText()"><i
+                                class="bi bi-search"></i></button>
+                        <button class="btn btn-secondary btn-sm" onclick="prevMatch()"><i
+                                class="bi bi-chevron-left"></i></button>
+                        <button class="btn btn-secondary btn-sm" onclick="nextMatch()"><i
+                                class="bi bi-chevron-right"></i></button>
+                    </div>
+                    <div class="d-flex gap-1 mb-2">
+                        <button class="btn btn-outline-light btn-sm flex-fill" onclick="replaceOne()">Replace</button>
+                        <button class="btn btn-outline-light btn-sm flex-fill" onclick="replaceAll()">All</button>
+                    </div>
+                    <div id="searchResult" class="text-cyan small text-center mb-2"></div>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="caseSensitive">
+                            <label class="form-check-label small" for="caseSensitive">Case</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="regexSearch">
+                            <label class="form-check-label small" for="regexSearch">Regex</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Card -->
+            <div class="sidebar p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+                    <h6 class="text-cyan mb-0"><i class="bi bi-clock-history"></i> Storage</h6>
+                    <button class="btn btn-outline-danger btn-sm" onclick="clearHistory()" title="Clear All">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div id="historyList"></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-lg-9 col-md-8">
+
+            <!-- Status -->
+            <div id="status" class="alert d-none mb-3" role="alert"></div>
+
+            <!-- Editor Panels -->
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card card-dark">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2">
+                            <span>Input</span>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-dark btn-sm" onclick="validateJSON()"><i
+                                        class="bi bi-check-circle"></i> Validate
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="expandJSON()"><i
+                                        class="bi bi-arrows-expand"></i> Beautify
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="minifyJSON()"><i
+                                        class="bi bi-arrows-collapse"></i>
+                                    Minify
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <textarea id="input" class="json-editor w-100 p-3" style="height: 650px;"
+                                      placeholder="Paste your JSON here..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card card-dark">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2">
+                            <span><i class="bi bi-output"></i> Output</span>
+
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-dark btn-sm" onclick="saveToHistory()"><i
+                                        class="bi bi-save"></i> Save
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="copyOutput()"><i
+                                        class="bi bi-copy"></i> Copy
+                                </button>
+                                <button class="btn btn-dark btn-sm" onclick="clearAll()"><i
+                                        class="bi bi-trash"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="output" class="p-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php $this->end() ?>

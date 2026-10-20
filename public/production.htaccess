@@ -1,0 +1,65 @@
+# Pano public/.htaccess -- Apache 2.4+
+# REQUIRED: replace app.example.com below with the actual Pano hostname.
+# DocumentRoot must point to the project's public/ directory.
+# Requires mod_rewrite and mod_headers, and AllowOverride permissions.
+
+Options -MultiViews -Indexes
+DirectoryIndex index.php
+ErrorDocument 403 "Forbidden"
+RewriteEngine On
+
+# Frame embedding: only the approved HTTPS parent origins.
+# Deliberately omit 'self': this app is not an approved outer parent.
+Header unset X-Frame-Options
+Header always unset X-Frame-Options
+Header unset Content-Security-Policy
+Header always set Content-Security-Policy "frame-ancestors https://tolio.ir https://www.tolio.ir"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+Header always set X-Content-Type-Options "nosniff"
+# No includeSubDomains/preload without auditing all subdomains.
+# TLS terminated at a proxy: configure HSTS at that trusted proxy instead.
+Header always set Strict-Transport-Security "max-age=31536000" "expr=%{HTTPS} == 'on'"
+
+# Preserve Bearer/JWT authorization (Pano front controller).
+RewriteCond %{HTTP:Authorization} .
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Block hidden files/directories, except ACME's .well-known.
+RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L]
+
+# Never expose other PHP/HTML entry points or source/backup files.
+RewriteRule ^(?!index\.php$).*\.(?:php[0-9]*|phtml|phar|html?)(?:/|$) - [F,L,NC]
+RewriteRule \.(?:env|ini|log|sql|bak|old|orig|save|swp|dist)$ - [F,L,NC]
+
+# Only REAL static files bypass the access checks.
+# A virtual Pano route ending in .css/.jpg etc. does not bypass them.
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(?:css|js|mjs|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot)$ - [END,NC]
+
+# Block top-level page navigation in browsers supplying Fetch Metadata.
+# iframe navigation uses Sec-Fetch-Dest: iframe, not document.
+RewriteCond %{HTTP:Sec-Fetch-Dest} ^document$ [NC]
+RewriteRule ^ - [F,L]
+
+# Fail closed when Referer is missing.
+RewriteCond %{HTTP_REFERER} ^$
+RewriteRule ^ - [F,L]
+
+# Allow the approved parent OR this app (internal links/forms/AJAX).
+# Explicit hostname: do NOT derive this allowlist from the untrusted Host header.
+# HTTPS, exact hostname, optional default HTTPS port only.
+RewriteCond %{HTTP_REFERER} !^https://(?:www\.)?tolio\.ir(?::443)?(?:/|$) [NC]
+RewriteCond %{HTTP_REFERER} !^https://tools\.tolio\.ir(?::443)?(?:/|$) [NC]
+RewriteRule ^ - [F,L]
+
+# Pano: canonicalize trailing slashes, except real directories.
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.+)/$ /$1 [R=301,L]
+
+# Pano: serve existing allowed files/directories.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Pano: route everything else to the front controller; query stays intact.
+RewriteRule ^ index.php [L]
