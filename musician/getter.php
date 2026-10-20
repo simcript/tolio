@@ -16,9 +16,9 @@ function getSongs($type)
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
         CURLOPT_HTTPHEADER => [
-            "Authorization: Bearer d91e58e2552c291a6ae06d5a0868b684",
-            "User-Agent: ams_pano",
-            "X-Package-Name: ir.luhuf.341",
+            "Authorization: Bearer 427bc38136e6900c20ee9891e7fc7b0e",
+            "User-Agent: tolio_musician",
+            "X-Package-Name: ir.tolio.283",
         ],
     ]);
 
@@ -56,6 +56,7 @@ function main () {
         if ((time() - $time) < 3600) {
             return;
         }
+        file_put_contents($timeFile, time());
         $types = ['music','religious','ritual','declamation','poem','blues','eulogy','tawashih','lecture','book','podcast','other'];
         $playlists = [];
         $songs = [];
@@ -74,7 +75,6 @@ function main () {
         file_put_contents(__DIR__ . '/assets/categories.log', json_encode($playlists));
         file_put_contents(__DIR__ . '/assets/playlists.log', json_encode([]));
         file_put_contents(__DIR__ . '/assets/songs.log', json_encode($songs));
-        file_put_contents($timeFile, time());
     } catch (\Exception $e) {
         file_put_contents(__DIR__ . '/assets/error.log', $e->getMessage() . PHP_EOL, FILE_APPEND);
     }
