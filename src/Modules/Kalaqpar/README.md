@@ -1,6 +1,8 @@
 # Kalaqpar — Module Development Guide
 
-> This document is a product specification and development contract for developers and coding agents, not a claim that the implementation is ready. Features and operational commands must be implemented and tested in the actual project. Before changing code, every agent must read this file, the repository instructions, and the design reference.
+> Product rules remain authoritative. The integrated implementation, exact commands, deployment examples, verification evidence and limitations are documented in [OPERATIONS.md](OPERATIONS.md). Persian handoff: [README.fa.md](README.fa.md). Read this entire specification and every supplied design before changing the interface.
+>
+> **Owner override (2026-10-22): do not author or modify frontend/backend tests, test helpers, fixtures, scripts, frameworks, dependencies or testing CI for this task. Existing testing files must remain untouched. This overrides every earlier test-authoring requirement below. Only normal syntax/lint/build commands and direct manual verification are authorized; behavioral/security/concurrency acceptance requirements still apply.**
 
 ## 1. Purpose and Scope
 
@@ -47,7 +49,7 @@ Do not use React, Vue, Angular, jQuery, another backend framework, an independen
 ### Module Boundaries
 
 - Keep game-specific code and resources inside `src/Modules/Kalaqpar` wherever project conventions allow. Extend the existing module; do not create a parallel implementation.
-- Place game PHP classes under `Src\Modules\Kalaqpar` and its subnamespaces. Migration/test exceptions must follow host tooling.
+- Place game PHP classes under `Src\Modules\Kalaqpar` and its subnamespaces. Migration exceptions must follow host tooling.
 - Derive directory names, layers, templates, and service registration from the actual project. This document does not impose a fictional directory tree.
 - Put rules in testable services, not templates, routes, or the worker loop. Make the clock and randomness source injectable.
 - Do not create a separate bootstrap, public entry point, `vendor` directory, Composer project, or migration engine. Do not overwrite root files or upgrade dependencies unnecessarily.
@@ -162,7 +164,7 @@ For one-based round number `n`, the answer window is `max(1500, 2500 - 200 * flo
 - “First” means earliest valid server acceptance order in that round. A unique server-side sequence resolves simultaneous/equal timestamps deterministically. Exactly one player earns the speed point.
 - Requests may carry `client_elapsed_ms` based on `performance.now()`, a client timestamp, and a synchronization sample identifier. The client should submit elapsed reaction time, but this is **untrusted**, auxiliary/diagnostic data; it does not determine scoring, deadlines, or ordering.
 - Estimate RTT and clock offset using several server-time samples. Use these estimates for timer display and connection diagnostics. Flag or discard negative, invalid, or implausible telemetry; never allow it to rewrite the past.
-- Version one has **no late-answer grace period and no ordering based on raw browser timestamps**. Competitive latency compensation requires a documented policy, a bounded allowance, anti-cheat tests, and synchronized updates to both READMEs.
+- Version one has **no late-answer grace period and no ordering based on raw browser timestamps**. Competitive latency compensation requires a documented policy, a bounded allowance, a separately authorized anti-cheat evaluation, and synchronized updates to both READMEs.
 - The next round's start time may be announced in advance, but its item identity and answer must not be disclosed. Preload/cache the public image library, not a “next round → image” mapping. Reveal the active item only at the permitted start.
 - The server selects images. Filenames, URLs, and metadata must not disclose `can_fly` or the answer category. Publish correctness only after the deadline.
 - Polling, network delay, and lock acquisition can create timing advantages. This policy is measurable and safer than trusting browser clocks, but it does not guarantee network equality or prove the actual touch time. State this limitation honestly in the short game instructions too.
@@ -229,7 +231,7 @@ countdown → round_active → round_feedback → ... → finished
                     ↘ technical_cancelled
 ```
 
-Lobby/queue, next-match waiting, presence, and spectating are states separate from match participation. Adapt enum names to project conventions, but make transitions and permissions explicit and tested.
+Lobby/queue, next-match waiting, presence, and spectating are states separate from match participation. The implementation makes transitions and permissions explicit; verify them manually where the environment permits.
 
 - A single worker registered through the host CLI handles matchmaking, round start/end, timeouts, settlement, results, host transfer, and cleanup. Game progression must not depend on player polling.
 - Require a real single-worker lock, graceful shutdown, a health heartbeat, structured logs, and restart recovery.
@@ -279,7 +281,7 @@ A successful submission acknowledges acceptance and locks the choice only. Neith
 - `score_events` is an immutable score ledger: player, match, round, delta, reason, timestamp, and unique key. Zero-point settlements may be events too. Every player/round must have one definitive settlement outcome.
 - Insert the event and update match/all-time scores in the same transaction. Retries, crashes, and repeated worker execution must not duplicate effects. Wins and result statistics must also be idempotent.
 - Provide a CLI command to rebuild cached scores from the ledger. Physically deleting a room/identity must not accidentally cascade-delete score history.
-- Keep the database, WAL/SHM files, backups, tokens, and logs inaccessible from the web. Use separate databases for tests.
+- Keep the database, WAL/SHM files, backups, tokens, and logs inaccessible from the web. Use isolated private storage when manually evaluating a deployment.
 
 ## 10. Rankings, Statistics, and Content
 
@@ -297,7 +299,7 @@ A successful submission acknowledges acceptance and locks the choice only. Neith
 
 - Provide at least 100 unique, reviewed Persian items, including at least 30 real flying items. Each needs a relevant image/illustration, name, and private server-side answer category.
 - Show a stone for a stone and a crow for a crow. Do not reuse one generic image or unrelated emoji for everything. Document asset sources and usage rights.
-- Keep selection approximately balanced between categories without predictable alternation. Do not repeat an item from the previous five rounds of that match. Make seeding rerunnable and randomness controllable in tests.
+- Keep selection approximately balanced between categories without predictable alternation. Do not repeat an item from the previous five rounds of that match. Make seeding rerunnable and keep the randomness source injectable; do not author test code.
 - Do not expose `can_fly` or answer explanations before round end through JSON, HTML, data attributes, JavaScript bundles, or asset names. A public image catalog is allowed; future order and classification labels are not public.
 - Handle failed image loading with the item's text name and a suitable fallback. Images and names should complement each other for accessibility.
 
@@ -311,9 +313,9 @@ A successful submission acknowledges acceptance and locks the choice only. Neith
 - If PHP sessions are used, release session locks early so polling and answer requests do not block one another.
 - Do not claim complete prevention of bots, multiple identities, invitation sharing, collusion, or network-speed advantages.
 
-## 12. Tests and Acceptance Criteria
+## 12. Manual Acceptance Criteria and No-Test-Authoring Decision
 
-Require real tests using existing project tooling, injectable clock/randomness, and isolated databases. Concurrency tests must use file-backed SQLite and separate connections/processes; in-memory tests alone are insufficient.
+The owner explicitly excludes test authoring and automated acceptance coverage. Do not create or modify test code, fixtures, helpers, scripts, frameworks, dependencies, runners or testing CI. Keep existing tests untouched. Injectable clock/randomness remain architectural features. The following are behavioral acceptance criteria for code review and direct manual review; an unchecked box is not evidence of successful execution. See OPERATIONS.md for checks actually performed and limits.
 
 - [ ] Automatic identity, secure cookies, refresh, multiple tabs, name editing, and no interference with host login.
 - [ ] FIFO queue, single-player waiting, two-player start after formation wait, early start at 30, count dropping during countdown, leaving, and reconnecting.
@@ -329,10 +331,10 @@ Require real tests using existing project tooling, injectable clock/randomness, 
 - [ ] Single worker, crashes between operations, short restart recovery, and technical cancellation after long downtime without mass penalties or fabricated wins.
 - [ ] Idempotent ledger, score rebuilding, one-time results/wins, shared ranks, pagination, and Tehran week boundaries.
 - [ ] CSRF, unauthorized room access, name-based XSS, rate limits, token confidentiality, and network-error recovery.
-- [ ] A real smoke test using at least three independent users/cookie jars; a 30-player capacity test recording polling/SQLite behavior in the test environment.
-- [ ] Visual comparison with all 14 overview states, RTL, mobile/desktop, keyboard, contrast, and reduced motion; no related regression in existing host tests.
+- [ ] Direct manual play with at least three independent users/cookie jars; manually observe a 30-player deployment before claiming its load capacity. Do not write automation for these tasks.
+- [ ] Visual comparison with all 14 overview states, RTL, mobile/desktop, keyboard, contrast, and reduced motion; preserve the existing host modules and leave their tests untouched.
 
-Final acceptance: three independent users can play through both entry paths without registering, see the same rounds, receive correct results, and restore the right state after refresh. Real worker-driven progression, support for up to 30 players, security, every screen, and tests are part of the deliverable. Mocks, static data, and TODOs do not replace them.
+Final acceptance: three independent users can play through both entry paths without registering, see the same rounds, receive correct results, and restore the right state after refresh. Real worker-driven progression, support for up to 30 players, security, every screen, and honest permitted verification are part of the deliverable. Automated tests are explicitly excluded by the owner. Mocks, static data, and TODOs do not replace them.
 
 ## 13. Running, Deployment, and Agent Handoff
 
@@ -340,10 +342,10 @@ This specification does not yet verify commands for the target project. After in
 
 1. Installing locked Composer dependencies, the required PHP version, and extensions including PDO SQLite.
 2. Environment/configuration, database paths and permissions, and migrations/seeding through the host workflow.
-3. Running the web application and worker in development, health checks, and tests.
+3. Running the web application and worker in development, health checks, and permitted manual verification.
 4. Deploying Nginx/Apache and PHP-FPM, HTTPS, cookies, and module asset delivery.
-5. A complete, tested systemd or Supervisor example using the actual worker command, restart policy, and logs.
-6. SQLite WAL-compatible backups using an appropriate snapshot/backup method or controlled writer shutdown. Copying only the main database file while writes continue is insufficient. Include restoration procedures and a recovery test.
+5. A complete systemd or Supervisor example; state explicitly whether deployment was actually exercised using the actual worker command, restart policy, and logs.
+6. SQLite WAL-compatible backups using an appropriate snapshot/backup method or controlled writer shutdown. Copying only the main database file while writes continue is insufficient. Include restoration procedures and state whether a snapshot was actually restored and inspected manually.
 7. Actual settings for capacity, rounds, timing, polling, heartbeats, locks, TTLs, and rate limits; document the single-server, single-worker, local-disk deployment limit.
 8. Retention policy: clean expired queue entries/tokens and empty rooms according to TTL; do not delete ledger/results by default. Archive primary history only under a documented retention policy that preserves score consistency.
 9. Graceful shutdown, crash recovery, migration-compatible rollback, and observed load limitations.
@@ -355,7 +357,19 @@ Shared hosting without persistent CLI process support is unsuitable for this arc
 - Features actually completed and their file paths.
 - Every change outside `src/Modules/Kalaqpar`, with its reason.
 - New decisions and synchronized updates to both READMEs.
-- Commands actually executed and actual test/visual-review results.
+- Commands actually executed and actual syntax/manual/visual-review outcomes; do not claim automated tests.
 - Limitations, unexecuted checks, and remaining work; no fabricated implementation or testing claims.
 
 **Final principle:** Develop this module inside the existing Pano application, following that application's real structure and these rules—not as a standalone application, a visual mockup, or a different game.
+
+
+## 14. Implemented Integration (2026-10-22)
+
+- The existing `/kalaqpar` foundation entry now resolves `KalaqparModule`, replacing the incorrect mapping to the legacy Guessing word game. Legacy module files, cookies, database and testing infrastructure remain unchanged.
+- Native Pano handlers/templates and `BaseCommand` commands implement the game. Dedicated configuration is `config/kalaqpar.php`, loading module settings; `KQ_*` environment names avoid the older game's `KALAQPAR_*` variables.
+- SQLite migrations 1 and 2, 111 original vector illustrations (39 flying, 72 non-flying), rerunnable production seeding, ledger rebuilding, snapshot backups and the persistent worker are included. Images have content-hash filenames and no classification metadata.
+- Each match randomly contains seven or eight flying items out of fifteen. Categories are sampled without a predictable alternation; the previous five item IDs are excluded. The category is snapshotted into each private round record.
+- A previous private participant viewing results keeps room membership without automatically opting into the next match. Readiness is explicit. Previous participants have admission priority, followed by the bounded incoming waiting list; only up to capacity are frozen at start. Spectators are a subset of that waiting list.
+- Identity bootstrap uses a browser challenge plus a private persistent HMAC key, with deterministic concurrent bootstrap and only guest-token hashes in SQLite. The key is included in operational backup instructions. No host PHP session is opened.
+- All API times are UTC epoch milliseconds. The portable `kalaqpar:stop` command requests a graceful stop; Linux SIGINT/SIGTERM also work. Heartbeat reports successful ticks; a filesystem lock enforces one worker.
+- Exact commands, API inventory, configuration, security, deployment, retention, backup/restore, verified observations and unexecuted acceptance checks: [OPERATIONS.md](OPERATIONS.md).

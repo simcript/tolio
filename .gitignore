@@ -5,6 +5,7 @@
 /.idea
 /.vscode
 .idea/*.xml
+src/Modules/Kalaqpar/Files/runtime/
 # Kalaghpār runtime artifacts (never commit the game database)
 src/Modules/Guessing/Files/*.sqlite
 src/Modules/Guessing/Files/*.sqlite-[0-9]*

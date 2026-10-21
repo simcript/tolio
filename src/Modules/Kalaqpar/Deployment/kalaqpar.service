@@ -1,0 +1,27 @@
+[Unit]
+Description=Kalaqpar persistent Pano game worker
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/tools
+ExecStart=/usr/bin/php /srv/tools/pano kalaqpar kalaqpar:worker
+Restart=always
+RestartSec=1
+KillSignal=SIGTERM
+TimeoutStopSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kalaqpar
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
