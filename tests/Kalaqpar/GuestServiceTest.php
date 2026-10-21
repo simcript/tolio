@@ -1,17 +1,17 @@
 <?php
 
-namespace Tests\Kalaqpar;
+namespace Tests\Guessing;
 
 use Pano\Foundation\Request;
-use Src\Modules\Kalaqpar\Exceptions\KalaqparException;
-use Src\Modules\Kalaqpar\Services\GuestService;
+use Src\Modules\Guessing\Exceptions\GuessingException;
+use Src\Modules\Guessing\Services\GuestService;
 
 /**
  * Guest identity + CSRF behavior without touching any HTTP headers: the
  * service is exercised the way pages and the API call it, with the cookie
  * writer injected (the CLI never emits record headers).
  */
-final class GuestServiceTest extends KalaqparTestCase
+final class GuestServiceTest extends GuessingTestCase
 {
     private function request(string $uri = '/kalaqpar/', array $data = []): Request
     {
@@ -64,8 +64,8 @@ final class GuestServiceTest extends KalaqparTestCase
             $forged->attributes->set('kalaqpar.csrf', 'not-the-token');
             $this->guestService->assertCsrf($forged, $guest);
             self::fail('A forged CSRF token must be rejected.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::CSRF, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::CSRF, $error->error);
         }
 
         // The genuine token (attribute fallback; CLI requests carry no headers).
@@ -83,8 +83,8 @@ final class GuestServiceTest extends KalaqparTestCase
         try {
             $this->guestService->assertCsrf($request, $fresh);
             self::fail('Rotated token invalidates the previous one.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::CSRF, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::CSRF, $error->error);
         }
     }
 
@@ -95,8 +95,8 @@ final class GuestServiceTest extends KalaqparTestCase
         try {
             $this->guestService->rename($guest, 'ی');
             self::fail('Name below the length limit must be rejected.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::VALIDATION, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::VALIDATION, $error->error);
         }
 
         $renamed = $this->guestService->rename($guest, ' کلاغ‌بنو ');

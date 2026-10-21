@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\Kalaqpar;
+namespace Tests\Guessing;
 
 use Pano\Foundation\Request;
-use Src\Modules\Kalaqpar\Exceptions\KalaqparException;
-use Src\Modules\Kalaqpar\Handlers\ApiHandler;
-use Src\Modules\Kalaqpar\KalaqparModule;
-use Src\Modules\Kalaqpar\Services\GuestService;
+use Src\Modules\Guessing\Exceptions\GuessingException;
+use Src\Modules\Guessing\Handlers\ApiHandler;
+use Src\Modules\Guessing\GuessingModule;
+use Src\Modules\Guessing\Services\GuestService;
 use Src\Foundation\DefaultFoundation;
 
 /**
@@ -17,7 +17,7 @@ use Src\Foundation\DefaultFoundation;
  * Guest identity is cookie-driven; tests simulate cookies through the
  * $_COOKIE superglobal exactly like the framework reads it.
  */
-final class ApiHandlerTest extends KalaqparTestCase
+final class ApiHandlerTest extends GuessingTestCase
 {
     private function request(string $method, string $uri): Request
     {
@@ -65,7 +65,7 @@ final class ApiHandlerTest extends KalaqparTestCase
 
     private function handlerFor(Request $request): ApiHandler
     {
-        return new ApiHandler($request, new KalaqparModule($request, new DefaultFoundation()));
+        return new ApiHandler($request, new GuessingModule($request, new DefaultFoundation()));
     }
 
     private function withGuestCookie(string $key): void
@@ -156,7 +156,7 @@ final class ApiHandlerTest extends KalaqparTestCase
         [$body, $status] = $this->respond($handler, 'state');
 
         self::assertSame(400, $status);
-        self::assertSame(KalaqparException::VALIDATION, json_decode($body, true)['error']);
+        self::assertSame(GuessingException::VALIDATION, json_decode($body, true)['error']);
     }
 
     public function test_state_for_unknown_room_reports_ok_false(): void
@@ -185,7 +185,7 @@ final class ApiHandlerTest extends KalaqparTestCase
         [$body, $status] = $this->respond($handler, 'createRoom');
 
         self::assertSame(403, $status);
-        self::assertSame(KalaqparException::CSRF, json_decode($body, true)['error']);
+        self::assertSame(GuessingException::CSRF, json_decode($body, true)['error']);
     }
 
     public function test_fresh_guest_gets_identity_but_is_still_csrf_gated(): void
@@ -200,7 +200,7 @@ final class ApiHandlerTest extends KalaqparTestCase
         [$body, $status] = $this->respond($handler, 'createRoom');
 
         self::assertSame(403, $status, 'No CSRF token, no mutation.');
-        self::assertSame(KalaqparException::CSRF, json_decode($body, true)['error']);
+        self::assertSame(GuessingException::CSRF, json_decode($body, true)['error']);
         self::assertSame(
             1,
             (int) $this->connection->run('SELECT COUNT(*) FROM kalaqpar_guests')->fetchColumn(),
@@ -230,7 +230,7 @@ final class ApiHandlerTest extends KalaqparTestCase
         [$body, $status] = $this->respond($this->handlerFor($request), 'createRoom');
 
         self::assertSame(429, $status);
-        self::assertSame(KalaqparException::RATE_LIMITED, json_decode($body, true)['error']);
+        self::assertSame(GuessingException::RATE_LIMITED, json_decode($body, true)['error']);
     }
 
     public function test_leaderboard_endpoint_returns_array_payload(): void

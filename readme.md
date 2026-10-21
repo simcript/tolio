@@ -15,7 +15,7 @@ at `public/` and install dependencies with `composer install`.
 | Musician | `/musician` | `src/Modules/Musician` |
 | OnRegex | `/onregex` | `src/Modules/Onregex` |
 | Red JSON | `/red-json` | `src/Modules/RedJson` |
-| Kalaqpar | `/kalaqpar` | `src/Modules/Kalaqpar` |
+| Guessing | `/kalaqpar` | `src/Modules/Guessing` |
 
 Each module registers its routes in `setup()`, renders `Views/home.php` through
 `Views/layout.php`, and returns a Pano response from its handler. The original
@@ -32,13 +32,13 @@ without cURL. Provider settings and their existing defaults are in
 `MUSICIAN_API_TOKEN` can override them in `.env`. The existing audio metadata
 helper is available through `POST /musician/info` with a `url` form field.
 
-Kalaqpar (کلاغ‌پر) is a real-time multiplayer Persian word-racing game: rooms
+Guessing (کلاغ‌پر) is a real-time multiplayer Persian word-racing game: rooms
 reveal a word letter by letter, and the first player to type it wins the round
 with points that decay as more letters show. It keeps all state in a
 module-private SQLite database (`php pano kalaqpar kalaqpar:migrate` and
 `kalaqpar:seed` for setup) and advances rooms through the persistent worker
 `php pano kalaqpar kalaqpar:serve`; guest identity, CSRF, and rate limits are
-fully module-scoped. See `src/Modules/Kalaqpar/README.md` for the full rules,
+fully module-scoped. See `src/Modules/Guessing/README.md` for the full rules,
 API, and commands.
 
 Run the app integration checks without contacting the music provider:

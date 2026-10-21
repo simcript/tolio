@@ -1,17 +1,17 @@
 <?php
 
-namespace Tests\Kalaqpar;
+namespace Tests\Guessing;
 
-use Src\Modules\Kalaqpar\Exceptions\KalaqparException;
-use Src\Modules\Kalaqpar\Services\EventLog;
-use Src\Modules\Kalaqpar\Services\GameRules;
+use Src\Modules\Guessing\Exceptions\GuessingException;
+use Src\Modules\Guessing\Services\EventLog;
+use Src\Modules\Guessing\Services\GameRules;
 
 /**
  * The full round lifecycle of the engine, driven by the injected clock so
  * every timing scenario (reveals, timeouts, round chaining, idle rooms,
  * streaks, concurrency) is deterministic.
  */
-final class GameEngineTest extends KalaqparTestCase
+final class GameEngineTest extends GuessingTestCase
 {
     public function test_game_starts_in_a_wired_lobby_and_first_round_launches(): void
     {
@@ -225,8 +225,8 @@ final class GameEngineTest extends KalaqparTestCase
         try {
             $this->engine->guess($player, (string) $room['code'], 'زوگ', $this->now + 1);
             self::fail('Cooldown must block a second guess within two seconds.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::RATE_LIMITED, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::RATE_LIMITED, $error->error);
         }
 
         $this->engine->guess($player, (string) $room['code'], 'زوگ', $this->now + 2);
@@ -251,8 +251,8 @@ final class GameEngineTest extends KalaqparTestCase
         try {
             $this->engine->guess($player, (string) $room['code'], 'زوگ', $this->now + 6);
             self::fail('Wrong-guess budget must stop the fourth wrong guess.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::RATE_LIMITED, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::RATE_LIMITED, $error->error);
         }
     }
 
@@ -266,8 +266,8 @@ final class GameEngineTest extends KalaqparTestCase
         try {
             $this->engine->guess($player, (string) $room['code'], (string) $round['word'], (int) $round['ends_at'] + 3);
             self::fail('Guesses must not score after ends_at.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::TOO_LATE, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::TOO_LATE, $error->error);
         }
 
         $finished = $this->connection->one(
@@ -297,8 +297,8 @@ final class GameEngineTest extends KalaqparTestCase
         try {
             $this->engine->guess($late, (string) $room['code'], 'زوگ', $this->now + 2);
             self::fail('Late joiners cannot guess until the next round.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::NOT_MEMBER, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::NOT_MEMBER, $error->error);
         }
 
         // ...but the engine wraps them into the next round automatically.

@@ -1,5 +1,5 @@
 /* =========================================================================
- * Kalaqpar (کلاغ‌پر) client — vanilla ES2017, strictly scoped to the game
+ * Guessing (کلاغ‌پر) client — vanilla ES2017, strictly scoped to the game
  * pages (bootstrapped via window.__KALAQPAR__ set by the module views).
  * No framework, no build step, DOM-safe: user strings are rendered with
  * textContent only, never innerHTML.
@@ -52,13 +52,13 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
-                'X-Kalaqpar-CSRF': boot.csrf
+                'X-Guessing-CSRF': boot.csrf
             },
             credentials: 'same-origin',
             body: JSON.stringify(body || {})
         }).then(function (response) {
             return response.json().catch(function () {
-                throw window.KalaqparUnknownError || { error: 'network_error', message: 'اتصال به سرور برقرار نشد.' };
+                throw window.GuessingUnknownError || { error: 'network_error', message: 'اتصال به سرور برقرار نشد.' };
             }).then(function (data) {
                 if (!response.ok || data.ok === false) {
                     throw data;

@@ -8,7 +8,7 @@ use Src\Modules\Calma\CalmaModule;
 use Src\Modules\Colorfy\ColorfyModule;
 use Src\Modules\Default\DefaultModule;
 use Src\Modules\Idate\IdateModule;
-use Src\Modules\Kalaqpar\KalaqparModule;
+use Src\Modules\Guessing\GuessingModule;
 use Src\Modules\Laralog\LaralogModule;
 use Src\Modules\Musician\MusicianModule;
 use Src\Modules\Onregex\OnregexModule;
@@ -28,7 +28,7 @@ class DefaultFoundation extends Foundation
         'musician' => MusicianModule::class,
         'onregex' => OnregexModule::class,
         'red-json' => RedJsonModule::class,
-        'kalaqpar' => KalaqparModule::class,
+        'kalaqpar' => GuessingModule::class,
     ];
 
     public static function exception(): string

@@ -1,33 +1,33 @@
 <?php
 
-namespace Tests\Kalaqpar;
+namespace Tests\Guessing;
 
 use Pano\Foundation\Request;
-use Src\Modules\Kalaqpar\Database\WordSeeder;
-use Src\Modules\Kalaqpar\Exceptions\KalaqparException;
+use Src\Modules\Guessing\Database\WordSeeder;
+use Src\Modules\Guessing\Exceptions\GuessingException;
 
 /**
  * Database layer guarantees: schema idempotency, seed idempotency and
  * rate-limit windows — all on the isolated per-test database.
  */
-final class DatabaseTest extends KalaqparTestCase
+final class DatabaseTest extends GuessingTestCase
 {
     public function test_migrations_are_idempotent(): void
     {
         // setUp() already applied them once; a re-run changes nothing.
-        $applied = (new \Src\Modules\Kalaqpar\Database\Migrator())->migrate($this->connection);
+        $applied = (new \Src\Modules\Guessing\Database\Migrator())->migrate($this->connection);
         self::assertSame([], $applied, 'Second migrate run must be a no-op.');
 
         $priorGuests = $this->connection->run('SELECT COUNT(*) FROM kalaqpar_guests')->fetchColumn();
         $this->guest('guest-a');
-        (new \Src\Modules\Kalaqpar\Database\Migrator())->migrate($this->connection);
+        (new \Src\Modules\Guessing\Database\Migrator())->migrate($this->connection);
         $afterGuests = $this->connection->run('SELECT COUNT(*) FROM kalaqpar_guests')->fetchColumn();
         self::assertSame((int) $priorGuests + 1, (int) $afterGuests, 'Schema reruns never touch data.');
     }
 
     public function test_word_seeder_is_idempotent_and_scoped(): void
     {
-        $pack = __DIR__ . '/../../src/Modules/Kalaqpar/Files/words.json';
+        $pack = __DIR__ . '/../../src/Modules/Guessing/Files/words.json';
         $seeder = new WordSeeder($pack);
 
         $first = $seeder->seed($this->connection);
@@ -50,8 +50,8 @@ final class DatabaseTest extends KalaqparTestCase
         try {
             $this->limiter->assertLimit((int) $guest['id'], 'room.create', 4, 60, $this->now + 4);
             self::fail('Fifth hit inside the window must be limited.');
-        } catch (KalaqparException $error) {
-            self::assertSame(KalaqparException::RATE_LIMITED, $error->error);
+        } catch (GuessingException $error) {
+            self::assertSame(GuessingException::RATE_LIMITED, $error->error);
             self::assertSame('room.create', $error->body()['scope']);
         }
 

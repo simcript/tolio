@@ -1,28 +1,28 @@
 <?php
 
-namespace Tests\Kalaqpar;
+namespace Tests\Guessing;
 
 use PHPUnit\Framework\TestCase;
-use Src\Modules\Kalaqpar\Database\Connection;
-use Src\Modules\Kalaqpar\Database\Migrator;
-use Src\Modules\Kalaqpar\Repositories\GuestRepository;
-use Src\Modules\Kalaqpar\Repositories\RoundRepository;
-use Src\Modules\Kalaqpar\Repositories\RoomRepository;
-use Src\Modules\Kalaqpar\Services\EventLog;
-use Src\Modules\Kalaqpar\Services\GameEngine;
-use Src\Modules\Kalaqpar\Services\GameOptions;
-use Src\Modules\Kalaqpar\Services\GameRules;
-use Src\Modules\Kalaqpar\Services\GameState;
-use Src\Modules\Kalaqpar\Services\GuestService;
-use Src\Modules\Kalaqpar\Services\RateLimiter;
+use Src\Modules\Guessing\Database\Connection;
+use Src\Modules\Guessing\Database\Migrator;
+use Src\Modules\Guessing\Repositories\GuestRepository;
+use Src\Modules\Guessing\Repositories\RoundRepository;
+use Src\Modules\Guessing\Repositories\RoomRepository;
+use Src\Modules\Guessing\Services\EventLog;
+use Src\Modules\Guessing\Services\GameEngine;
+use Src\Modules\Guessing\Services\GameOptions;
+use Src\Modules\Guessing\Services\GameRules;
+use Src\Modules\Guessing\Services\GameState;
+use Src\Modules\Guessing\Services\GuestService;
+use Src\Modules\Guessing\Services\RateLimiter;
 
 /**
- * Shared plumbing for Kalaqpar tests: every test runs against its own
+ * Shared plumbing for Guessing tests: every test runs against its own
  * temporary SQLite file (config override — the same pattern the smoke
  * script uses for Musician) and its own word list, so application data is
  * never touched.
  */
-abstract class KalaqparTestCase extends TestCase
+abstract class GuessingTestCase extends TestCase
 {
     /** Game clock for the tests; advanceTime() moves it. */
     protected int $now = 1_700_000_000;
@@ -74,7 +74,7 @@ abstract class KalaqparTestCase extends TestCase
         $this->connection = new Connection($this->databasePath());
 
         $applied = (new Migrator())->migrate($this->connection);
-        self::assertCount(3, $applied, 'All Kalaqpar migrations must apply on a fresh database.');
+        self::assertCount(3, $applied, 'All Guessing migrations must apply on a fresh database.');
 
         $this->rooms = new RoomRepository($this->connection);
         $this->rounds = new RoundRepository($this->connection);

@@ -1,10 +1,10 @@
 <?php
 
-namespace Tests\Kalaqpar;
+namespace Tests\Guessing;
 
-use Src\Modules\Kalaqpar\Services\GameRules;
+use Src\Modules\Guessing\Services\GameRules;
 
-final class GameRulesTest extends KalaqparTestCase
+final class GameRulesTest extends GuessingTestCase
 {
     public function test_normalization_unifies_keyboard_variants_and_strips_noise(): void
     {
@@ -72,7 +72,7 @@ final class GameRulesTest extends KalaqparTestCase
 
     public function test_guess_validation_rejects_empty_and_overlong_guesses(): void
     {
-        $this->expectException(\Src\Modules\Kalaqpar\Exceptions\KalaqparException::class);
+        $this->expectException(\Src\Modules\Guessing\Exceptions\GuessingException::class);
         GameRules::validateGuess('   ');
     }
 

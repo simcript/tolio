@@ -1,5 +1,5 @@
 /* =========================================================================
-   Kalaqpar (کلاغ‌پر) — all styles are scoped under .klq-app/.klq-* so they
+   Guessing (کلاغ‌پر) — all styles are scoped under .klq-app/.klq-* so they
    can never leak into other apps of the suite. Mobile-first, RTL.
    Bootstrap itself is reused from the host installation (see layout.php).
    ========================================================================= */
