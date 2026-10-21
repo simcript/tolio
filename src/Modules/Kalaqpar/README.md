@@ -1,0 +1,361 @@
+# Kalaqpar — Module Development Guide
+
+> This document is a product specification and development contract for developers and coding agents, not a claim that the implementation is ready. Features and operational commands must be implemented and tested in the actual project. Before changing code, every agent must read this file, the repository instructions, and the design reference.
+
+## 1. Purpose and Scope
+
+Build a real multiplayer reaction game: during each round, every participant in a match sees **the same item's image and name** and chooses one of two buttons: **«پر!» (Fly!)** or **«رد کن» (Skip)**. The server processes answers and scores.
+
+This is **not a word-guessing game, crossword, multiple-choice quiz, turn-based game, or browser-only multiplayer simulation**. There is no text-answer input. “Skip” is an answer; it does not advance the image for an individual player.
+
+- Technical module name: `Kalaqpar`.
+- Required path, relative to the project root: `src/Modules/Kalaqpar`.
+- Root PHP namespace: `Src\Modules\Kalaqpar`.
+- Current display name: Kalaqpar.
+- Product interface: Persian, RTL, responsive, and mobile-first. This English documentation does not require an English interface.
+- Two entry paths: **Quick Play through a public queue** and **Play with Friends through an invitation-only room**.
+- Match capacity: **2–30 players**; **15 rounds** by default; no elimination for mistakes.
+
+### Precedence and Superseded Rules
+
+The final rules in this document supersede conflicting earlier specifications: elimination for mistakes, “do nothing” as an answer, a default 30-round limit, a fixed six-player capacity, last-survivor victory, and an elimination screen are no longer valid.
+
+Repository instructions and project conventions govern implementation; this specification governs game behavior and security guarantees. The design reference governs visual design; its sample numbers, names, and results are not real data or independent rules. Where an image conflicts with a rule, this specification takes precedence. Report genuine incompatibilities; do not silently change the stack or weaken security. Keep the Persian and English versions synchronized.
+
+## 2. Required Stack and Project Integration
+
+| Area | Requirement |
+|---|---|
+| Backend | PHP 8.2+, or the higher minimum required by installed dependencies |
+| Framework | Pano only; skeleton: https://github.com/pano-php/pano ; library: https://github.com/pano-php/framework |
+| Database | SQLite through PDO |
+| Frontend | HTML, Bootstrap 5 RTL, CSS, vanilla JavaScript, and Fetch API |
+| Live communication | HTTP/JSON and short polling |
+| Game progression | A persistent PHP CLI worker registered through the host application's actual Pano mechanisms |
+
+Do not use React, Vue, Angular, jQuery, another backend framework, an independent router, WebSocket, or SSE in version one. Do not add Redis, MySQL, mandatory external services, or a Node.js runtime dependency. Prefer local essential assets, fonts, and Bootstrap; basic gameplay must not depend on a CDN.
+
+### Before Writing Code
+
+1. Inspect `AGENTS.md`, repository instructions, Git status, and existing user changes.
+2. Read `composer.json`, `composer.lock`, autoload mappings, the installed Pano version, bootstrap, and module registration.
+3. Inspect existing modules and real examples of routes/handlers, DI, interceptors/middleware, validation, templates, assets, migrations, seeds, CLI, logging, and tests.
+4. Do not invent Pano APIs or commands. Use installed code and documentation matching that version, not merely the layout of an online example repository.
+5. Actually open and inspect `src/Modules/Kalaqpar/Files/Desings/00-overview.jpg`.
+6. State a brief integration plan, module registration points, and necessary changes outside the module, then proceed with implementation.
+
+### Module Boundaries
+
+- Keep game-specific code and resources inside `src/Modules/Kalaqpar` wherever project conventions allow. Extend the existing module; do not create a parallel implementation.
+- Place game PHP classes under `Src\Modules\Kalaqpar` and its subnamespaces. Migration/test exceptions must follow host tooling.
+- Derive directory names, layers, templates, and service registration from the actual project. This document does not impose a fictional directory tree.
+- Put rules in testable services, not templates, routes, or the worker loop. Make the clock and randomness source injectable.
+- Do not create a separate bootstrap, public entry point, `vendor` directory, Composer project, or migration engine. Do not overwrite root files or upgrade dependencies unnecessarily.
+- If the host requires centralized migrations, tests, or assets, make only the necessary, limited integration changes and document their paths and reasons.
+- Naming defaults, where compatible: routes under `/kalaqpar`, route/config names prefixed with `kalaqpar`, CLI commands with `kalaqpar:`, and tables with `kalaqpar_`.
+- Do not change the behavior of other modules' authentication, layouts, cookies, or databases. If needed, add a dedicated SQLite connection through host configuration and DI.
+- Scope CSS and JavaScript to the Kalaqpar interface root. Do not introduce conflicting Bootstrap versions or disruptive global handlers.
+
+## 3. Design Reference and Screens
+
+The authoritative visual reference is:
+
+```text
+src/Modules/Kalaqpar/Files/Desings/00-overview.jpg
+```
+
+The spelling **`Desings`** matches the existing path and is intentional here. Do not rename it to `Designs`.
+
+Place this README and its Persian counterpart in the module root so the following image resolves correctly:
+
+![Interface design overview](Files/Desings/00-overview.jpg)
+
+Visual language: a warm, light background; rounded white cards; purple primary actions; yellow secondary actions and invitations; lavender surfaces; cheerful, simple illustrations; readable Persian typography; and comfortable mobile spacing. An unstyled Bootstrap page or a static screenshot instead of a working interface is not acceptable.
+
+The following names identify the generated designs. Separate files may not exist in the repository; the designated reference is the overview. Inspect individual designs as well if available.
+
+| Design | Required behavior |
+|---|---|
+| `01-home` | Real identity and statistics, short rules, “Quick Play” and “Play with Friends” CTAs, profile and leaderboard access |
+| `02-public-queue` | Player count, capacity, server-based waiting time/countdown, leave queue |
+| `03-create-room` | Room name, capacity selection from 2 to 30, manual-start explanation, creation and invitation link |
+| `04-host-lobby` | Copy/share link, player list and presence, count, host-only start |
+| `05-join-invitation` | Limited room preview, guest name, capacity and join; full/closed/started states |
+| `05b-guest-lobby` | Player list, copy link, wait for host, leave; no start permission |
+| `06-live-game` | Large image and item name, round out of 15, timer, own score/rank, two large buttons |
+| `07-player-list` | Scrollable panel/screen containing all players, ranks, scores, and presence |
+| `08-round-feedback` | After the round ends: correctness, score change, and waiting for the next round |
+| `08b-skip-feedback` | Clearly explain “Your skip was correct, but only the first correct answer earned the speed point”; show zero points |
+| `09-next-match-waiting` | Late invitee, waiting for the next match, authorized spectating without answering |
+| `10-match-results` | Winner or joint winners, own rank/score, all results, play again |
+| `11-leaderboard` | Weekly/all-time views, pagination, own position even outside the current page |
+| `12-profile` | Name/avatar, name editing, statistics, history, guest identity persistence warning |
+
+### User Experience Requirements
+
+- Do not place 30 names at the top of the game. Show the player's own score/rank, a top-three summary, and an “All players — N” button.
+- Use a purple «پر!» button and a yellow «رد کن» button, both large and touch-friendly. “Skip” is not a small link or a next-stage button.
+- Upon selection, lock both buttons and show a submitting state. After acknowledgement, show only “Answer recorded.” Hide correctness until the round ends.
+- On network failure, retry the same selection and `request_id`. Do not permit a contradictory choice while acceptance is uncertain. Refresh must restore server state.
+- Design loading, empty, pending, offline, reconnecting, late-answer, full/closed room, invalid invitation, host-change, and unavailable-worker states.
+- Animate the countdown smoothly, but the browser timer is not authoritative. Do not publish the current round's score/rank changes before settlement.
+- Support touch, mouse, and keyboard: Space for Fly and ArrowDown for Skip. Ignore game shortcuts when focus is in input/textarea/contenteditable, and ignore key repeat. Touch and click must not submit twice.
+- Use touch targets of at least 44px, visible focus, labeled buttons, image alt text without answer disclosure, sufficient contrast, and `prefers-reduced-motion`. Do not communicate status through color alone.
+- Verify Persian typography, spacing, RTL ordering, Persian numeral display, and mobile-to-desktop responsiveness. API timestamps and numeric data must remain standard numeric values.
+- Provide bottom navigation for home/leaderboard/profile where appropriate. Explain the consequences before leaving an active game.
+
+## 4. Final Rules and Scoring
+
+Classification is based on **ordinary ability to fly**, not simply being a bird. Crows and butterflies fly; cats, stones, penguins, and ostriches do not. Exclude ambiguous, fictional, vehicle-related, and condition-dependent cases in version one.
+
+| Item type | Answer within the valid window | Score |
+|---|---|---:|
+| Flying | Fly | `+1` for every correct player |
+| Flying | Skip | `-1` |
+| Non-flying | First correct Skip | `+1` for exactly one player |
+| Non-flying | Other correct Skips | `0`, but counted as correct in statistics |
+| Non-flying | Fly | `-1` |
+| Either | No valid answer by the deadline | `-1` |
+
+- Mistakes and timeouts never eliminate players. All participants remain on the match roster until it ends.
+- Each player has at most one accepted answer per round. The first accepted answer is final and cannot be changed.
+- An accepted but incorrect answer receives `-1` exactly once; do not subsequently apply another timeout penalty.
+- Duplicate, rejected, or late requests have no independent penalty. If no valid answer exists, apply the round's ordinary timeout once.
+- The first correct Skip does not end the round. In version one, keep the fixed deadline even if everyone has answered; do not reveal results early.
+- After settling every player in the final round, the highest **score in that match**, not the account's all-time score, wins.
+- Negative scores are allowed. If all scores are negative, the highest still wins. Ties for the highest score produce **joint winners**, including when everyone ties.
+- Record one win for each joint winner. Winning grants no additional score bonus. Record each result/win only once.
+- Snapshot the round count and settings at match start. Configuration changes must not alter an active match.
+
+## 5. Timing, Fairness, and the Meaning of “First”
+
+### Configurable Defaults
+
+These are version-one implementation decisions for otherwise open details. Sample values in the designs do not override them.
+
+| Setting | Default |
+|---|---:|
+| Round count | 15 |
+| Initial countdown | 3 seconds |
+| Answer window | 2500ms for rounds 1–5, 2300ms for 6–10, 2100ms for 11–15 |
+| Window reduction | 200ms every 5 rounds; floor of 1500ms |
+| Inter-round feedback interval | 2000ms; next-round countdown occurs within this interval |
+| Public capacity | 30; minimum start count of 2 |
+| Private capacity | Host selects 2–30; default 30 |
+| Public formation wait after second player | At most 12 seconds, followed by the initial countdown |
+| Worker tick | Approximately 100ms |
+| Active-game polling | Approximately 300ms |
+| Queue/lobby polling | Approximately 1000ms |
+| Offline threshold | 15 seconds without a valid heartbeat |
+| Host transfer after disconnection | 30 seconds without heartbeat; immediate on explicit departure |
+| Long worker outage threshold | 10 seconds; configurable |
+| Completely empty room expiry | 30 minutes |
+| Default guest identity lifetime | 180 days |
+
+For one-based round number `n`, the answer window is `max(1500, 2500 - 200 * floor((n - 1) / 5))` milliseconds.
+
+### Authoritative Version-One Policy
+
+- The server is authoritative for start times, deadlines, acceptance, ordering, and scoring. Everyone shares the same `round_id` and schedule.
+- Acceptance interval: `starts_at <= server_accepted_at < deadline_at`. An answer at the exact deadline is late. Never reopen a settled round.
+- Capture `server_accepted_at` from the server clock inside the atomic acceptance operation, after acquiring the write lock and before inserting the answer. Do not capture it before waiting for the lock and subsequently accept an expired answer.
+- “First” means earliest valid server acceptance order in that round. A unique server-side sequence resolves simultaneous/equal timestamps deterministically. Exactly one player earns the speed point.
+- Requests may carry `client_elapsed_ms` based on `performance.now()`, a client timestamp, and a synchronization sample identifier. The client should submit elapsed reaction time, but this is **untrusted**, auxiliary/diagnostic data; it does not determine scoring, deadlines, or ordering.
+- Estimate RTT and clock offset using several server-time samples. Use these estimates for timer display and connection diagnostics. Flag or discard negative, invalid, or implausible telemetry; never allow it to rewrite the past.
+- Version one has **no late-answer grace period and no ordering based on raw browser timestamps**. Competitive latency compensation requires a documented policy, a bounded allowance, anti-cheat tests, and synchronized updates to both READMEs.
+- The next round's start time may be announced in advance, but its item identity and answer must not be disclosed. Preload/cache the public image library, not a “next round → image” mapping. Reveal the active item only at the permitted start.
+- The server selects images. Filenames, URLs, and metadata must not disclose `can_fly` or the answer category. Publish correctness only after the deadline.
+- Polling, network delay, and lock acquisition can create timing advantages. This policy is measurable and safer than trusting browser clocks, but it does not guarantee network equality or prove the actual touch time. State this limitation honestly in the short game instructions too.
+
+## 6. Automatic Guest Identity
+
+- No email, phone number, password, or registration form. First entry creates a persistent guest identity, a default Persian name, and an avatar/color.
+- Generate a cryptographically secure token with at least 256 bits of entropy. Store only its hash in the database. Store the original in a module-specific cookie with `HttpOnly`, `SameSite=Lax`, and `Secure` on production HTTPS.
+- Default lifetime is 180 days with controlled renewal. Do not store the token in localStorage, URLs, or logs. A client-provided user identifier is not authentication.
+- Refresh, multiple tabs, and returning with a valid cookie must restore the same identity. Coordinate concurrent bootstrap requests to avoid unnecessarily creating multiple guests.
+- Allow editing the display name; uniqueness is not required. Default length: 2–30 visible characters. Reject/sanitize control characters and malicious input. Use a separate public identifier independent of the name.
+- Show this profile warning in Persian: «با پاک‌کردن کوکی‌ها یا تغییر مرورگر، دسترسی به این پروفایل از بین می‌رود.» (“Clearing cookies or switching browsers will lose access to this profile.”)
+- Visiting the site creates identity only; joining a queue/room requires an explicit action. Preserve the host application's login and cookies.
+
+## 7. Public Queue and Friends' Rooms
+
+### Quick Play
+
+- Use a real FIFO queue without bots or fake players. One player waits; arrival of the second starts a formation window of at most 12 seconds.
+- At capacity or when the window expires, if at least two players are present, freeze the roster and begin the three-second start countdown.
+- If presence drops below two before the match begins, cancel the countdown and return to waiting. Start a fresh formation window when the minimum count is reached again.
+- Join/leave operations must be idempotent. Refresh must not reset queue position. Remove offline users from the queue after 15 seconds.
+- Do not mix public and private rooms. Enforce capacity transactionally.
+
+### Invitation-Only Rooms
+
+- The host chooses a name and capacity from 2 to 30 and becomes the first member. Validate room names with a default maximum of 40 characters.
+- Invitation links use an unguessable random token with at least 128 bits of entropy. Private rooms have no public listing and are never filled from the public queue.
+- Link holders may see a limited preview of name/capacity/status. Full membership lists and match state require membership/spectator authorization.
+- Opening a link with GET must not automatically join. The Join button uses POST and checks identity, capacity, and phase. Possessing the invitation does not grant host privileges.
+- Use the Web Share API when available and provide copy-link functionality with a fallback. Keep invitation tokens out of analytics/logs and prevent external leakage through an appropriate referrer policy.
+- **Only the host** may start, with at least two present members. A full private room does not auto-start. Recheck authorization, capacity, presence, and phase inside the transaction.
+- Freeze the participant roster when the countdown begins. New arrivals wait for the next match. If the countdown is canceled, the lobby becomes joinable again.
+- Explicit host departure: transfer immediately to the longest-standing present member. Disconnection: after 30 seconds, transfer atomically to the longest-standing present member. There must be only one host; a returning former host does not reclaim ownership automatically.
+- If nobody is present, starting is impossible; the first eligible member to become present can become host. Close empty rooms after their TTL, but do not treat an active match as empty merely because players are offline.
+- Once started, a match must not depend on the host remaining online. The host cannot control answers, scores, or early completion.
+
+### Late Invitations, Spectating, and Rematches
+
+- Never add a new participant to an active match. A valid invitation may authorize waiting/spectating in that room, not answering in the current match.
+- Display waiting, spectator, and participant counts separately. In version one, cap the next-match waiting list at the room's capacity; additional arrivals receive a “waiting list full” message.
+- Spectators see only permitted public round information. Other players' answers, correctness, current-round score changes, and speed results remain hidden until the round ends.
+- After a private match, “Play again with this group” means opting into the next match/returning to the lobby, not automatically starting. Returning previous participants have priority; then admit waiting users in arrival order up to capacity. Others keep waiting. The host starts manually again.
+- Every new match receives a new identifier and starts with zero match points. Preserve history and all-time scores. The room link remains valid until the room closes.
+- After a public match, “Quick Play again” enters a fresh public queue. Preserving a public group is not required in version one.
+
+### Membership, Leaving, and Disconnections
+
+- Each identity may have at most one active engagement: a queue, a lobby/waiting state in one room, or participation in one match. Preserve historical membership separately. Switch paths through explicit/atomic departure, not hidden concurrent memberships.
+- A brief disconnection must not eliminate players or alter the match roster. Reconnection restores the same match and accepted answer.
+- Offline participants remain part of the match. Each unanswered round receives the normal `-1`, not an additional disconnection penalty. Calculate accuracy and score accordingly.
+- Confirm manual departure from the game/page with a warning: scoring participation continues until the match ends, and unanswered rounds receive `-1`. Leaving is not an escape from penalties and does not release the lock against joining another match. Returning to this match is allowed.
+- Do not declare an early winner because players went offline. Continue the configured number of rounds unless a server failure causes technical cancellation.
+- Multiple tabs share one identity and one answer per round. Enforce all restrictions server-side.
+
+## 8. Server Execution and API Contract
+
+### State Lifecycle
+
+Conceptual match lifecycle:
+
+```text
+countdown → round_active → round_feedback → ... → finished
+                    ↘ technical_cancelled
+```
+
+Lobby/queue, next-match waiting, presence, and spectating are states separate from match participation. Adapt enum names to project conventions, but make transitions and permissions explicit and tested.
+
+- A single worker registered through the host CLI handles matchmaking, round start/end, timeouts, settlement, results, host transfer, and cleanup. Game progression must not depend on player polling.
+- Require a real single-worker lock, graceful shutdown, a health heartbeat, structured logs, and restart recovery.
+- Recover short interruptions using persistent state and idempotent operations. After an outage exceeding the threshold, technically cancel stale matches: do not mass-penalize the open round, preserve settled scores, award no wins, and do not count a completed competitive result. Explain the reason in the UI.
+- When the worker is stopped or its heartbeat is stale, stop starting matches and accepting new answers, and display service status. Do not lose already accepted answers.
+- Allow at most one in-flight poll per page. Use backoff and jitter on errors, reduce polling outside gameplay, and throttle heartbeat writes. Older responses with a lower `state_version` must not overwrite newer UI state.
+- Keep `state_version` monotonically increasing within its room/match scope. Discard responses for a previous identifier after navigation.
+
+### Conceptual Endpoints
+
+Register actual paths according to the host Pano application. This list is not framework syntax:
+
+- Bootstrap/me, profile read/update.
+- Queue join/leave/state.
+- Room creation, invitation preview, join/leave, lobby state, host start.
+- Next-match waiting, spectator authorization, rematch readiness.
+- Match state, answer, confirmation of leaving the match view, results/history.
+- Leaderboard with period and pagination; health exposing minimal, non-sensitive information.
+
+Use GET for reads. Join, leave, start, create, answer, rematch, and update operations require state-changing methods and CSRF protection. Create identities through a secure POST bootstrap or a compatible existing mechanism. Read endpoints must not accidentally enroll users in games.
+
+Authorized state should include `server_now`, `room_id`, `match_id`, `state_version`, `phase`, `round_id`/round number, total rounds, `starts_at`, `deadline_at`, next transition time, the user's role/permissions, player presence, settled scores, and the user's own answer-submission status. Expose the active item's name and image only when permitted. Use UTC timestamps with a consistent, documented unit, preferably epoch milliseconds.
+
+Answer request:
+
+```json
+{
+  "match_id": "...",
+  "round_id": "...",
+  "action": "fly",
+  "request_id": "...",
+  "client_elapsed_ms": 742
+}
+```
+
+Allow only `fly` or `skip` for `action`. Derive identity from the authenticated cookie. Never trust submitted scores, ranks, correctness, or `user_id`. Keep `request_id` unchanged for retries of the same operation; reusing it with a different payload must produce a conflict. A response uniqueness constraint must also prevent a second answer using a new request identifier.
+
+A successful submission acknowledges acceptance and locks the choice only. Neither the answer response nor state responses may disclose correctness, score changes, or the speed winner before the round ends. Use consistent JSON errors with machine-readable codes, safe messages, and appropriate HTTP statuses. Return personal/game responses with `Cache-Control: no-store`.
+
+## 9. SQLite, Scoring, and Concurrency
+
+- Store SQLite on local disk outside the public directory. Use PDO and prepared statements. Enable `foreign_keys=ON` for every connection, WAL, and a suitable `busy_timeout`.
+- Keep transactions short. Use `BEGIN IMMEDIATE` or a correct equivalent for critical writes, with bounded `SQLITE_BUSY` retries. Do not hold transactions open during sleeps or network I/O.
+- Capacity allocation, host ownership, answer acceptance, and settlement must be atomic. The worker and answer handler must use consistent time boundaries and locking.
+- Conceptual tables: module-specific guests/users, auth_tokens, items, queue_entries, rooms, room_members, matches, match_players, rounds, round_responses, score_events, match_results, and worker_status. Adapt names/decomposition to the project. A room is not a match because rooms support rematches.
+- Use versioned migrations, foreign keys, and appropriate indexes. Require uniqueness for responses `(round_id, player_id)`, rounds `(match_id, number)`, results `(match_id, player_id)`, and logical settlement events. Preserve cross-table active-membership invariants through atomic operations and appropriate constraints.
+- `score_events` is an immutable score ledger: player, match, round, delta, reason, timestamp, and unique key. Zero-point settlements may be events too. Every player/round must have one definitive settlement outcome.
+- Insert the event and update match/all-time scores in the same transaction. Retries, crashes, and repeated worker execution must not duplicate effects. Wins and result statistics must also be idempotent.
+- Provide a CLI command to rebuild cached scores from the ledger. Physically deleting a room/identity must not accidentally cascade-delete score history.
+- Keep the database, WAL/SHM files, backups, tokens, and logs inaccessible from the web. Use separate databases for tests.
+
+## 10. Rankings, Statistics, and Content
+
+### Scores and Rankings
+
+- Version-one default: public and private matches use the same rules and both contribute to all-time/weekly scores. Store the mode for future reporting/filtering. This decision does not guarantee resistance to collusion or multiple identities.
+- Match rank uses that match's score. All-time rank uses the full ledger total. Weekly rank uses events within that week.
+- The week starts Saturday at 00:00 in `Asia/Tehran`, converted correctly to UTC. Store UTC timestamps and query half-open intervals. Do not reset scores through a cron job.
+- Equal scores receive shared competition ranks (1, 1, 3). Use public player identifiers for stable ordering within ties, without breaking joint victory. Include pagination and the current user's position.
+- Exclude identities with no settled rounds from competitive leaderboards. Count wins/completed matches only for `finished` matches. Show canceled matches separately in history; retain scores settled before cancellation.
+- Accuracy is correct selections (correct `fly` and all correct `skip` answers, including zero-point ones) divided by the player's valid settled rounds. Mistakes and timeouts count as incorrect. Exclude server-invalidated rounds and spectator-only states from the denominator. Display “—” when the denominator is zero.
+- Profile fields: name/avatar, all-time and weekly scores, completed matches, wins including joint wins, best completed-match score, accuracy, join date, and recent history. Remove “survival” metrics.
+
+### Items and Images
+
+- Provide at least 100 unique, reviewed Persian items, including at least 30 real flying items. Each needs a relevant image/illustration, name, and private server-side answer category.
+- Show a stone for a stone and a crow for a crow. Do not reuse one generic image or unrelated emoji for everything. Document asset sources and usage rights.
+- Keep selection approximately balanced between categories without predictable alternation. Do not repeat an item from the previous five rounds of that match. Make seeding rerunnable and randomness controllable in tests.
+- Do not expose `can_fly` or answer explanations before round end through JSON, HTML, data attributes, JavaScript bundles, or asset names. A public image catalog is allowed; future order and classification labels are not public.
+- Handle failed image loading with the item's text name and a suitable fallback. Images and names should complement each other for accessibility.
+
+## 11. Security
+
+- Authenticate guests and check membership/roles on every operation. Changing `room_id`/`match_id` must not grant access to another room. Spectators cannot answer; lobby guests cannot start.
+- Protect state-changing operations against CSRF, validate Origin where appropriate, default to same-origin, and do not enable unrestricted CORS.
+- Apply separate rate limits to identity/room creation, invitation guessing, joining, answers, and name updates. Do not unnecessarily block legitimate polling or users behind NAT. Limit request body sizes and pagination.
+- Escape names or use `textContent`, not unsafe `innerHTML`. Require Unicode validation, prepared statements, and safe asset URLs.
+- Production errors must not expose stack traces, internal paths, or secrets. Logs must omit tokens/cookies/full invitation links. Minimize metrics and avoid unnecessary personal data collection.
+- If PHP sessions are used, release session locks early so polling and answer requests do not block one another.
+- Do not claim complete prevention of bots, multiple identities, invitation sharing, collusion, or network-speed advantages.
+
+## 12. Tests and Acceptance Criteria
+
+Require real tests using existing project tooling, injectable clock/randomness, and isolated databases. Concurrency tests must use file-backed SQLite and separate connections/processes; in-memory tests alone are insufficient.
+
+- [ ] Automatic identity, secure cookies, refresh, multiple tabs, name editing, and no interference with host login.
+- [ ] FIFO queue, single-player waiting, two-player start after formation wait, early start at 30, count dropping during countdown, leaving, and reconnecting.
+- [ ] Room capacities of 2 and 30; reject 1/31; capacity under concurrent joins; invalid/closed invitations; no public-queue entry into private rooms.
+- [ ] Host-only start, duplicate start, start/join/leave races, host transfer, and uninterrupted matches after host disconnection.
+- [ ] Late invitations, spectating without answering or answer leakage, waiting, and rematches with new identifiers.
+- [ ] Every scoring-table row, zero for the second correct Skip, exactly one speed winner for equal timestamps, one-time timeout penalties, and negative scores.
+- [ ] No elimination, all 15 rounds, highest-score victory, joint wins, all-negative/all-tied results, and no extra win bonus.
+- [ ] Answers before start, at/after the deadline, conflicting payloads, retries, multiple tabs, second answers, answer/worker races, and SQLite locks.
+- [ ] Manipulated client time cannot alter deadlines/order/scores; stale state and previous-match requests are rejected or discarded as appropriate.
+- [ ] No early correctness disclosure through answer/state/assets; everyone retains the opportunity to answer until the deadline.
+- [ ] Disconnection and manual departure, no timeout evasion, answer restoration, and automatic progression without user requests.
+- [ ] Single worker, crashes between operations, short restart recovery, and technical cancellation after long downtime without mass penalties or fabricated wins.
+- [ ] Idempotent ledger, score rebuilding, one-time results/wins, shared ranks, pagination, and Tehran week boundaries.
+- [ ] CSRF, unauthorized room access, name-based XSS, rate limits, token confidentiality, and network-error recovery.
+- [ ] A real smoke test using at least three independent users/cookie jars; a 30-player capacity test recording polling/SQLite behavior in the test environment.
+- [ ] Visual comparison with all 14 overview states, RTL, mobile/desktop, keyboard, contrast, and reduced motion; no related regression in existing host tests.
+
+Final acceptance: three independent users can play through both entry paths without registering, see the same rounds, receive correct results, and restore the right state after refresh. Real worker-driven progression, support for up to 30 players, security, every screen, and tests are part of the deliverable. Mocks, static data, and TODOs do not replace them.
+
+## 13. Running, Deployment, and Agent Handoff
+
+This specification does not yet verify commands for the target project. After inspecting the project and actually running them, the implementing agent must document precise commands and procedures for the following. Do not invent Pano commands:
+
+1. Installing locked Composer dependencies, the required PHP version, and extensions including PDO SQLite.
+2. Environment/configuration, database paths and permissions, and migrations/seeding through the host workflow.
+3. Running the web application and worker in development, health checks, and tests.
+4. Deploying Nginx/Apache and PHP-FPM, HTTPS, cookies, and module asset delivery.
+5. A complete, tested systemd or Supervisor example using the actual worker command, restart policy, and logs.
+6. SQLite WAL-compatible backups using an appropriate snapshot/backup method or controlled writer shutdown. Copying only the main database file while writes continue is insufficient. Include restoration procedures and a recovery test.
+7. Actual settings for capacity, rounds, timing, polling, heartbeats, locks, TTLs, and rate limits; document the single-server, single-worker, local-disk deployment limit.
+8. Retention policy: clean expired queue entries/tokens and empty rooms according to TTL; do not delete ledger/results by default. Archive primary history only under a documented retention policy that preserves score consistency.
+9. Graceful shutdown, crash recovery, migration-compatible rollback, and observed load limitations.
+
+Shared hosting without persistent CLI process support is unsuitable for this architecture. SQLite and polling do not provide unlimited scale; 30 players per match does not imply unlimited concurrent matches.
+
+### Required Handoff Report
+
+- Features actually completed and their file paths.
+- Every change outside `src/Modules/Kalaqpar`, with its reason.
+- New decisions and synchronized updates to both READMEs.
+- Commands actually executed and actual test/visual-review results.
+- Limitations, unexecuted checks, and remaining work; no fabricated implementation or testing claims.
+
+**Final principle:** Develop this module inside the existing Pano application, following that application's real structure and these rules—not as a standalone application, a visual mockup, or a different game.
