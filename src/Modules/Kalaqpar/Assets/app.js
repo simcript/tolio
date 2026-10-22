@@ -4,6 +4,7 @@ const root = document.getElementById('kalaqpar');
 if (!root) return;
 const $ = id => document.getElementById(id);
 const content = $('kq-content');
+const base = root.dataset.base; // Server-generated path, including the configured mount prefix.
 const fa = v => v === null || v === undefined ? '—' : new Intl.NumberFormat('fa-IR', {maximumFractionDigits: 1}).format(v);
 const node = (tag, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== '') e.textContent = text; return e; };
 const append = (e, ...children) => { children.flat().filter(Boolean).forEach(c => e.append(c)); return e; };
@@ -12,6 +13,7 @@ const card = (...children) => append(node('div', 'kq-card'), ...children);
 const note = (title, detail = '', color = 'kq-yellow') => append(node('div', 'kq-note ' + color), node('h3', '', title), detail ? p(detail) : null);
 let csrf = '', profile = null, state = null, page = 'home', viewEpoch = 0, fingerprint = '', lastHeartbeat = 0, lastProfile = 0, lastLeaders = 0;
 let invitation = root.dataset.invitation || '', preview = null, requestedMatch = null, offset = 0, samples = [], pollTimer = null;
+let codeDraft = '';
 let polling = false, activePoll = null, failures = 0, booted = false, pending = null, pendingSending = false, answerError = '', roundSeen = 0;
 let leaders = null, leaderPeriod = 'weekly', leaderPage = 1, historyPage = 1, colorDraft = 0, previousHost = null, previousRoom = null, navigating = false;
 const storage = {
@@ -28,7 +30,7 @@ function button(text, action, cls = '', disabled = false) {
 }
 function link(text, action) { return button(text, action, 'kq-link'); }
 function avatar(name, color, big = false) { const a = node('span', 'kq-avatar' + (big ? ' kq-big' : ''), [...(name || 'م')][0]); a.dataset.color = color ?? 2; a.setAttribute('aria-hidden','true'); return a; }
-function hero(title, subtitle = '', crow = true) { const box = node('div','kq-hero'); if (subtitle) box.append(node('div','kq-eyebrow',subtitle)); if (crow) { const img = node('img'); img.src='/kalaqpar/assets/hero.svg'; img.alt='تصویر کلاغ'; box.append(img); } box.append(node('h2','',title)); return box; }
+function hero(title, subtitle = '', crow = true) { const box = node('div','kq-hero'); if (subtitle) box.append(node('div','kq-eyebrow',subtitle)); if (crow) { const img = node('img'); img.src=base+'/assets/hero.svg'; img.alt='تصویر کلاغ'; box.append(img); } box.append(node('h2','',title)); return box; }
 function stats(entries) { return append(node('div','kq-stats'), entries.map(([value,label]) => append(node('div','kq-stat'),node('strong','',fa(value)),node('small','',label)))); }
 function heading(title, subtitle='') { $('kq-title').textContent=title; $('kq-subtitle').textContent=subtitle; $('kq-back').hidden=page==='home'; $('kq-nav').hidden=page==='game' || page==='invite'; root.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page)); }
 function rows(players, lobby=false) {
@@ -45,7 +47,7 @@ function rows(players, lobby=false) {
 async function api(path, body, extraHeaders={}) {
  const controller = new AbortController(); const timeout=setTimeout(()=>controller.abort(),8000); const sent=Date.now();
  try {
-  const response=await fetch('/kalaqpar/api/'+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json',...(body!==undefined?{'Content-Type':'application/json','X-KQ-CSRF':csrf}:{}),...extraHeaders},body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
+  const response=await fetch(base+'/api/'+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json',...(body!==undefined?{'Content-Type':'application/json','X-KQ-CSRF':csrf}:{}),...extraHeaders},body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
   const data=await response.json(); const received=Date.now();
   if (typeof data.server_now==='number') { samples.push({rtt:received-sent,value:data.server_now-(sent+received)/2}); samples=samples.slice(-9); const best=[...samples].sort((a,b)=>a.rtt-b.rtt).slice(0,3); offset=best.reduce((sum,s)=>sum+s.value,0)/best.length; }
   if (!response.ok || !data.ok) { const error=new Error(data.error?.message || 'سرویس بازی در دسترس نیست.'); error.code=data.error?.code || 'network'; error.status=response.status; throw error; }
@@ -76,8 +78,10 @@ function render(force=false) {
  const printable=JSON.stringify({page,state:{...state,server_now:0},profile:page==='home'?profile:null,pending,answerError});
  if (!force && printable===fingerprint) return; fingerprint=printable;
  if (page==='profile' || page==='leaders' || page==='create' || page==='invite') return;
+ const codeInput=$('kq-room-code');const selection=codeInput && document.activeElement===codeInput?{start:codeInput.selectionStart,end:codeInput.selectionEnd}:null;
  content.replaceChildren();
  if (page==='home') renderHome(); else renderGame();
+ if(selection && $('kq-room-code')){$('kq-room-code').focus();$('kq-room-code').setSelectionRange(selection.start,selection.end);}
  if ($('kq-players').open) $('kq-player-rows').replaceChildren(...rows(state?.players || state?.members || [],!state?.players));
 }
 function renderHome() {
@@ -86,16 +90,55 @@ function renderHome() {
  if (state.engagement) content.append(button('بازگشت به بازی و اتاق فعلی',async()=>{requestedMatch=null;await navigate('game');}));
  else if (state.last_match_id) content.append(link('دیدن نتیجه آخرین مسابقه',()=>openMatch(state.last_match_id)));
  content.append(button('بازی سریع',()=>mutation('queue',{},true),'',!state.worker_available || !!state.engagement),p('با بازیکن‌های آنلاین هم‌بازی شو'));
- content.append(button('بازی با دوستان',()=>navigate('create'),'kq-yellow',!!state.engagement),p('اتاق بساز و لینک دعوت رو بفرست'));
+ content.append(button('بازی با دوستان',()=>navigate('create'),'kq-yellow',!!state.engagement),p('اتاق بساز و کد یا لینک دعوت رو بفرست'),codeForm());
  content.append(note('اشتباه کردی؟ بازی ادامه داره!','۱۵ دور بازی؛ بیشترین امتیاز برنده می‌شه. پاسخ اشتباه یا بی‌پاسخ: ۱−. پرواز درست: برای همه ۱+. رد کردن درست: فقط اولین نفر ۱+، بقیه صفر.','kq-white'));
  content.append(p('زمان دریافت پاسخ در سرور ملاکه؛ تأخیر شبکه و سرعت اینترنت ممکنه روی نتیجه اثر بذاره.'));
 }
-function inviteCard() {
+function asciiDigits(value) {
+ return value.replace(/[۰-۹٠-٩]/g,c=>String('۰۱۲۳۴۵۶۷۸۹'.includes(c)?'۰۱۲۳۴۵۶۷۸۹'.indexOf(c):'٠١٢٣٤٥٦٧٨٩'.indexOf(c)));
+}
+function normalizeCode(value) {
+ const compact=asciiDigits(value).replace(/ /g,'');
+ return /^[1-9][0-9]{2}-?[0-9]{3}$/.test(compact)?compact.replace('-',''):null;
+}
+function codeForm() {
+ const form=node('form','kq-card');const label=node('label','kq-field','کد اتاق دوستت');
+ const input=node('input','kq-code-entry');input.type='text';input.inputMode='numeric';input.dir='ltr';input.id='kq-room-code';input.name='code';input.required=true;input.maxLength=32;input.autocomplete='off';input.spellcheck=false;
+ label.htmlFor=input.id;const help=p('کد شش‌رقمی را وارد کن؛ با خط تیره یا فاصله هم می‌شه.');help.id='kq-code-help';input.setAttribute('aria-describedby',help.id);
+ // No per-keystroke formatting: typing, selection, deleting and pasting stay native.
+ input.value=codeDraft;input.addEventListener('input',()=>{codeDraft=input.value;input.setCustomValidity('');});
+ const submit=button('دیدن دعوت',async()=>{
+  const code=normalizeCode(input.value);input.setCustomValidity(code?'':'کد شش‌رقمی اتاق را درست وارد کن.');if(!form.reportValidity())return;
+  invitation=code;preview=null;page='invite';viewEpoch++;message('');history.replaceState({},'',base+'/join/'+code);await renderInvitation();
+ },'',!!state?.engagement);
+ form.addEventListener('submit',e=>{e.preventDefault();submit.click();});
+ return append(form,node('h3','','دعوت شدی؟'),label,input,help,submit);
+}
+function manualCopy(text, container) {
+ let box=container.querySelector('.kq-copy-fallback');
+ if(!box){box=append(node('div','kq-copy-fallback'),p('کپی خودکار انجام نشد؛ متن را انتخاب کن و از گزینهٔ کپی مرورگر استفاده کن.'));container.append(box);}
+ let field=box.querySelector('textarea');if(!field){field=node('textarea','kq-share-text');field.readOnly=true;field.setAttribute('aria-label','متن آماده برای کپی دستی');box.append(field);}
+ field.value=text;field.dir='auto';field.focus();field.select();field.setSelectionRange(0,text.length);return box;
+}
+async function copyText(text, label, container) {
+ if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(text);message(label+' کپی شد.');return true;}catch{}}
+ const focused=document.activeElement;const fallback=manualCopy(text,container);
+ let copied=false;try{copied=typeof document.execCommand==='function' && document.execCommand('copy');}catch{}
+ if(copied){fallback.remove();focused?.focus();message(label+' کپی شد.');return true;}
+ message('کپی خودکار انجام نشد؛ متن را دستی کپی کن.');return false;
+}
+function inviteCard(details=state) {
  const box=node('div','kq-note kq-lavender kq-invite');box.append(node('h3','','دوست‌هات رو دعوت کن'));
- const url=location.origin+'/kalaqpar/r/'+state.invitation; const input=node('input');input.value=url;input.readOnly=true;input.setAttribute('aria-label','لینک دعوت خصوصی'); input.addEventListener('focus',()=>input.select());
- const copy=async()=>{ if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(url);message('لینک دعوت کپی شد.');return;}catch{}} input.focus();input.select();if(document.execCommand('copy'))message('لینک دعوت کپی شد.');else message('لینک را انتخاب و کپی کن.');};
- const share=async()=>{if(navigator.share){try{await navigator.share({title:'کلاغ‌پر',text:'بیا با هم بازی کنیم',url});return;}catch(e){if(e.name==='AbortError')return;}}await copy();};
- box.append(input,append(node('div','kq-split'),button('اشتراک‌گذاری لینک',share),button('کپی لینک',copy,'kq-white')));return box;
+ const code=node('bdi','kq-code',details.invitation_formatted);code.dir='ltr';code.setAttribute('aria-label','کد اتاق: '+details.invitation_formatted);
+ const input=node('input');input.type='text';input.value=details.invitation_url;input.readOnly=true;input.dir='ltr';input.setAttribute('aria-label','لینک دعوت اتاق');input.addEventListener('focus',()=>input.select());
+ const text='بیا کلاغ‌پر بازی کنیم!\nکد اتاق: '+details.invitation_formatted+'\nلینک ورود: '+details.invitation_url;
+ const share=async()=>{
+  if(navigator.share){try{await navigator.share({title:'کلاغ‌پر',text});message('دعوت به برنامهٔ اشتراک‌گذاری فرستاده شد.');return;}catch(e){if(e.name==='AbortError'){message('اشتراک‌گذاری لغو شد.');return;}}}
+  if(await copyText(text,'متن دعوت',box))message('متن دعوت کپی شد؛ در پیام‌رسان برای دوستت بفرست.');
+ };
+ const shareButton=button('اشتراک‌گذاری',share,'kq-share');
+ box.append(code,p('سه رقم اول، سه رقم بعد؛ کد رو به دوستت بگو!'),input,append(node('div','kq-invite-actions'),button('کپی کد',()=>copyText(details.invitation_formatted,'کد اتاق',box),'kq-white'),button('کپی لینک',()=>copyText(details.invitation_url,'لینک دعوت',box),'kq-white'),shareButton));
+ return box;
 }
 function renderGame() {
  if (!state || state.phase==='idle') { page='home';render(true);return; }
@@ -130,7 +173,7 @@ function renderLobby() {
  content.append(link('خروج از اتاق',leave),p('اگر میزبان خارج شود، میزبانی به قدیمی‌ترین عضو آنلاین منتقل می‌شود.'));
 }
 function renderWaiting() {
- heading(state.room_name,'مسابقه در حال برگزاریه');content.append(hero('به دست بعدی می‌رسی!','دور '+fa(state.number)+' از '+fa(state.total)));
+ heading(state.room_name,'مسابقه در حال برگزاریه');if(state.invitation_url)content.append(inviteCard());content.append(hero('به دست بعدی می‌رسی!','دور '+fa(state.number)+' از '+fa(state.total)));
  content.append(p('بازی شروع شده؛ وسط مسابقه کسی به شرکت‌کنندگان اضافه نمی‌شه.'),card(node('h3','',fa(state.participant_count)+' نفر مشغول بازی‌اند'),p(fa(state.waiting_count)+' نفر منتظر دست بعد؛ از این گروه '+fa(state.spectator_count)+' نفر تماشاگرند.')),
  note('بعد از پایان، وارد لابی می‌شی','بازیکن‌های قبلی برای برگشت اولویت دارند؛ بعد منتظرها به ترتیب ورود پذیرفته می‌شن.'),button('تماشای مسابقه',()=>mutation('spectate',{room_id:state.room_id},true)),link('خروج از اتاق',leave));
 }
@@ -183,9 +226,11 @@ async function navigate(next) {
   if(!confirm('امتیازدهی تا پایان مسابقه ادامه دارد. هر دور بی‌پاسخ ۱− دارد و نمی‌توانی همزمان وارد مسابقه دیگری شوی. از صفحه بازی خارج می‌شوی؟'))return;
   navigating=true;try{await api('leave',{});}finally{navigating=false;}
  }
+ if(page==='invite' && next==='home'){history.replaceState({},'',base+'/');invitation='';}
  page=next;viewEpoch++;fingerprint='';message('');
  if(next!=='game')requestedMatch=null;
  if(next==='create')return renderCreate();
+ if(next==='invite')return renderInvitation();
  if(next==='profile')return loadProfile();
  if(next==='leaders')return loadLeaders();
  if(next==='home') { const epoch=viewEpoch;try{const data=await api('profile');if(epoch!==viewEpoch)return;profile=data.profile;lastProfile=Date.now();}catch(e){message(e.message);} }
@@ -196,22 +241,27 @@ function renderCreate() {
  const group=append(node('div','kq-hero'),append(node('div','kq-group'),avatar('ش',2),avatar('تو',0),avatar('ن',1)),node('h2','','لینکش رو بفرست، دور هم بازی کنین'));
  const form=node('form');const name=node('input');name.id='kq-room-name';name.required=true;name.maxLength=40;name.value='دورهمی ما';const label=node('label','kq-field','نام اتاق');label.htmlFor=name.id;
  let capacity=30;const output=node('output','',fa(capacity)+' نفر');const decrease=button('−',()=>{capacity=Math.max(2,capacity-1);output.textContent=fa(capacity)+' نفر';});decrease.setAttribute('aria-label','کاهش ظرفیت');const increase=button('+',()=>{capacity=Math.min(30,capacity+1);output.textContent=fa(capacity)+' نفر';});increase.setAttribute('aria-label','افزایش ظرفیت');
- const submit=button('ساخت اتاق و دریافت لینک',async()=>{if(!form.reportValidity())return;await mutation('create',{name:name.value,capacity},true);});
+ const submit=button('ساخت اتاق و دریافت دعوت',async()=>{if(!form.reportValidity())return;await mutation('create',{name:name.value,capacity},true);});
  form.addEventListener('submit',e=>{e.preventDefault();submit.click();});
- form.append(label,name,node('h2','mt-4','ظرفیت اتاق'),p('از ۲ تا ۳۰ نفر؛ لازم نیست اتاق پر بشه.'),append(node('div','kq-stepper'),increase,output,decrease),note('شروع بازی دست توئه','با حضور حداقل دو نفر، هر وقت آماده بودین شروع کن.'),p('۱۵ دور · ورود فقط با لینک · بدون حذف'),submit);content.append(group,form);
+ form.append(label,name,node('h2','mt-4','ظرفیت اتاق'),p('از ۲ تا ۳۰ نفر؛ لازم نیست اتاق پر بشه.'),append(node('div','kq-stepper'),increase,output,decrease),note('شروع بازی دست توئه','با حضور حداقل دو نفر، هر وقت آماده بودین شروع کن.'),p('۱۵ دور · ورود با کد یا لینک · بدون حذف'),submit);content.append(group,form,codeForm());
 }
 async function renderInvitation() {
  heading('دعوت به بازی','بدون ثبت‌نام، به جمع دوست‌هات بپیوند');content.replaceChildren(card(p('در حال بررسی دعوت…')));const epoch=viewEpoch;
- try{const data=await api('preview?token='+encodeURIComponent(invitation));if(epoch!==viewEpoch || page!=='invite')return;preview=data.room;content.replaceChildren();
- const box=append(node('div','kq-profile-head'),avatar('د',0,true),node('h2','',preview.name),p('ظرفیت '+fa(preview.capacity)+' نفر · '+(preview.phase==='playing'?'در حال بازی':preview.phase==='closed'?'بسته شده':'لابی')));content.append(box);
- if(preview.phase==='closed'){content.append(note('این اتاق بسته شده است','از میزبان لینک اتاق جدید بگیر.'));return;}
- const label=node('label','kq-field','دوست‌هات با چه اسمی بشناسنت؟');label.htmlFor='kq-join-name';const name=node('input');name.id='kq-join-name';name.maxLength=30;name.value=profile.name;
- content.append(label,name,note('همه تا آخر بازی می‌مونن','اشتباه فقط امتیاز کم می‌کنه؛ حذف نداریم.'),p('۱۵ دور · پر! یا رد کن · بیشترین امتیاز برنده'));
- if(state.engagement)content.append(note('هم‌اکنون در صف یا اتاق دیگری هستی','ابتدا به آن برگرد و مسیر خروج را انتخاب کن.'),button('بازگشت به وضعیت فعلی',()=>navigate('game')));
- else content.append(button(preview.phase==='playing'?'پیوستن به انتظار دست بعد':'پیوستن به اتاق',async()=>{const renamed=await api('rename',{name:name.value,avatar:profile.avatar});profile=renamed.profile;await mutation('join',{invitation},true);history.replaceState({},'', '/kalaqpar/');invitation='';},'',!preview.available));
- if(!preview.available)content.append(note(preview.phase==='playing'?'فهرست انتظار پر است':'اتاق پر است','کمی بعد دوباره لینک را باز کن.'));
- content.append(card(node('h3','','لینک مخصوص همین اتاقه'),p('بازیکن‌های صف عمومی وارد جمع شما نمی‌شن.')));
- }catch(e){if(epoch!==viewEpoch)return;content.replaceChildren(note('دعوت در دسترس نیست',e.message),button('رفتن به خانه',()=>navigate('home')));}
+ try{
+  const data=await api('preview?code='+encodeURIComponent(invitation));if(epoch!==viewEpoch || page!=='invite')return;preview=data.room;invitation=preview.invitation_code;
+  history.replaceState({},'',base+'/join/'+invitation);content.replaceChildren();
+  const box=append(node('div','kq-profile-head'),avatar('د',0,true),node('h2','',preview.name),p('ظرفیت '+fa(preview.capacity)+' نفر · '+(preview.phase==='playing'?'در حال بازی':'لابی')));content.append(box,inviteCard(preview));
+  const label=node('label','kq-field','دوست‌هات با چه اسمی بشناسنت؟');label.htmlFor='kq-join-name';const name=node('input');name.type='text';name.id='kq-join-name';name.maxLength=30;name.value=profile.name;
+  content.append(label,name,note('همه تا آخر بازی می‌مونن','اشتباه فقط امتیاز کم می‌کنه؛ حذف نداریم.'),p('۱۵ دور · پر! یا رد کن · بیشترین امتیاز برنده'));
+  if(state.engagement)content.append(note('هم‌اکنون در صف یا اتاق هستی','برای ادامه به وضعیت فعلی برگرد.'),button('بازگشت به وضعیت فعلی',()=>navigate('game')));
+  else content.append(button(preview.phase==='playing'?'پیوستن به انتظار دست بعد':'پیوستن به اتاق',async()=>{
+   const renamed=await api('rename',{name:name.value,avatar:profile.avatar});profile=renamed.profile;
+   await mutation('join',{invitation},true);history.replaceState({},'',base+'/');invitation='';
+  },'',!preview.available));
+  if(!preview.available)content.append(note(preview.phase==='playing'?'فهرست انتظار پر است':'اتاق پر است','کمی بعد دوباره بررسی کن.'));
+  if(preview.phase==='playing')content.append(note('به دست بعدی می‌رسی','با پیوستن، منتظر دست بعد می‌مونی؛ وسط مسابقه وارد بازی نمی‌شی.'));
+  content.append(button('بررسی دوباره دعوت',renderInvitation,'kq-white'),card(node('h3','','دعوت مخصوص همین اتاقه'),p('بازیکن‌های صف عمومی وارد جمع شما نمی‌شن.')));
+ }catch(e){if(epoch!==viewEpoch)return;content.replaceChildren(note('دعوت در دسترس نیست',e.message),button('بررسی دوباره',renderInvitation,'kq-white'),codeForm(),button('رفتن به خانه',()=>navigate('home')));}
 }
 function pager(current,pages,action) {const bar=node('div','kq-pagination');bar.append(button('›',()=>action(current-1),'',current<=1),node('span','',fa(current)+' / '+fa(Math.max(1,pages))),button('‹',()=>action(current+1),'',current>=pages));return bar;}
 async function loadProfile() {
@@ -276,8 +326,9 @@ async function pollOnce(){
  if(!booted || polling)return;
  polling=true;const epoch=viewEpoch;const requested=requestedMatch;const previous=state;
  try{
-  if(Date.now()-lastHeartbeat>4500){await api('heartbeat',{});lastHeartbeat=Date.now();}
-  let data=await api('state'+(requested?'?match_id='+requested:''));
+  const shared=state?.progression_mode==='shared';
+  if(!shared && Date.now()-lastHeartbeat>4500){await api('heartbeat',{});lastHeartbeat=Date.now();}
+  let data=shared?await api('heartbeat',requested?{match_id:requested}:{}):await api('state'+(requested?'?match_id='+requested:''));
   if(epoch!==viewEpoch || requested!==requestedMatch)return;
   if(data.state.phase==='idle' && previous?.match_id && data.state.last_match_id===previous.match_id && ['countdown','round_active','round_feedback'].includes(previous.phase) && page==='game'){
    requestedMatch=previous.match_id;data=await api('state?match_id='+previous.match_id);if(epoch!==viewEpoch)return;
@@ -309,7 +360,7 @@ window.addEventListener('storage',e=>{if(profile && e.key===pendingKey()){syncPe
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});
 async function bootstrap(){
  const begin=async()=>{let nonce=document.querySelector('meta[name="kq-bootstrap"]').content;
- try{return await api('bootstrap',{}, {'X-KQ-Boot':nonce});}catch(e){if(e.code!=='csrf')throw e;const response=await fetch('/kalaqpar/',{credentials:'same-origin',cache:'no-store'});const html=new DOMParser().parseFromString(await response.text(),'text/html');nonce=html.querySelector('meta[name="kq-bootstrap"]').content;return api('bootstrap',{}, {'X-KQ-Boot':nonce});}};
+ try{return await api('bootstrap',{}, {'X-KQ-Boot':nonce});}catch(e){if(e.code!=='csrf')throw e;const response=await fetch(base+'/',{credentials:'same-origin',cache:'no-store'});const html=new DOMParser().parseFromString(await response.text(),'text/html');nonce=html.querySelector('meta[name="kq-bootstrap"]').content;return api('bootstrap',{}, {'X-KQ-Boot':nonce});}};
  try{
   const data=navigator.locks?await navigator.locks.request('kq-bootstrap',begin):await begin();csrf=data.csrf;profile=data.profile;lastProfile=Date.now();booted=true;acceptState(data.state);
   if(invitation){page='invite';await renderInvitation();}
@@ -319,5 +370,6 @@ async function bootstrap(){
   schedule(0);
  }catch(e){heading('کلاغ‌پر','در حال آماده‌سازی سرویس');content.replaceChildren(note('اتصال به بازی برقرار نشد',e.message),button('تلاش دوباره',bootstrap));}
 }
-bootstrap();requestAnimationFrame(animate);
+if(root.dataset.error){page='invite';heading('دعوت در دسترس نیست','کمی بعد دوباره تلاش کن');$('kq-back').hidden=true;content.replaceChildren(note('دعوت در دسترس نیست',root.dataset.error),button('تلاش دوباره',()=>location.reload()),button('رفتن به خانه',()=>location.assign(base+'/'),'kq-white'));}
+else{bootstrap();requestAnimationFrame(animate);}
 })();

@@ -9,7 +9,7 @@ final class Identity
 
     public static function cookie(string $name, string $value, int $expires): void
     {
-        setcookie($name, $value, ['expires' => $expires, 'path' => '/kalaqpar',
+        setcookie($name, $value, ['expires' => $expires, 'path' => PublicUrl::path(),
             'secure' => (bool) (Settings::values()['secure_cookie'] ?? false) || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
             'httponly' => true, 'samesite' => 'Lax']);
     }
@@ -86,5 +86,16 @@ final class Identity
             return $this->db->one('SELECT hits FROM kalaqpar_limits WHERE subject=? AND scope=? AND bucket=?', [$subject, $scope, $bucket])['hits'];
         });
         if ($hits > $count) { throw new GameError('rate_limited', 'کمی صبر کن و دوباره تلاش کن.', 429); }
+    }
+
+    // One budget for link pages, manual/link previews, legacy aliases and joins.
+    public function limitInvitation(?array $user = null): void
+    {
+        $this->limit('ip:' . hash('sha256', $_SERVER['REMOTE_ADDR'] ?? 'local'), 'invitation', 600);
+        if ($user === null) {
+            try { $user = $this->resolve(); }
+            catch (GameError $e) { if ($e->key !== 'identity_required') { throw $e; } }
+        }
+        if ($user) { $this->limit('u:' . $user['id'], 'invitation', 30); }
     }
 }

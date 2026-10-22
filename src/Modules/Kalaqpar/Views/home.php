@@ -1,5 +1,5 @@
 <?php $this->start('content') ?>
-<main id="kalaqpar" class="kq" data-invitation="<?= htmlspecialchars($invitation, ENT_QUOTES, 'UTF-8') ?>">
+<main id="kalaqpar" class="kq" data-base="<?= htmlspecialchars($base_path, ENT_QUOTES, 'UTF-8') ?>" data-error="<?= htmlspecialchars($initial_error, ENT_QUOTES, 'UTF-8') ?>" data-invitation="<?= htmlspecialchars($invitation, ENT_QUOTES, 'UTF-8') ?>">
     <header class="kq-header">
         <button id="kq-back" class="kq-icon" aria-label="بازگشت به خانه" hidden>›</button>
         <div><h1 id="kq-title">کلاغ‌پر</h1><p id="kq-subtitle">ببین، تصمیم بگیر، امتیاز بگیر!</p></div>
@@ -8,7 +8,7 @@
     <div id="kq-connection" role="status" class="kq-note kq-yellow" hidden></div>
     <div id="kq-worker" role="status" class="kq-note kq-yellow" hidden>سرویس بازی موقتاً در دسترس نیست. پاسخ‌های ثبت‌شده محفوظ هستند؛ در حال اتصال مجدد…</div>
     <div id="kq-message" role="status" aria-live="polite" hidden></div>
-    <section id="kq-content" aria-label="بازی کلاغ‌پر"><div class="kq-card kq-center"><span class="kq-spinner" aria-hidden="true"></span><p>در حال آماده‌سازی بازی…</p></div></section>
+    <section id="kq-content" aria-label="بازی کلاغ‌پر"><div class="kq-card kq-center"><p><?= $initial_error !== '' ? htmlspecialchars($initial_error, ENT_QUOTES, 'UTF-8') : 'در حال آماده‌سازی بازی…' ?></p></div></section>
     <nav id="kq-nav" aria-label="ناوبری اصلی">
         <button data-page="home"><span aria-hidden="true">⌂</span>خانه</button>
         <button data-page="leaders"><span aria-hidden="true">♜</span>رتبه‌بندی</button>

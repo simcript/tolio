@@ -4,11 +4,15 @@ Implemented in the host Pano 1.7.3 application, under namespace `Src\Modules\Kal
 
 **No test code was authored or modified. Do not add tests, fixtures, test helpers/scripts, testing dependencies or testing CI for this task. Existing tests are untouched.** Syntax checking and direct manual HTTP/CLI inspection are the permitted verification methods. Deployment templates are complete examples, not a claim that systemd, Nginx or PHP-FPM were installed or deployed in this workspace.
 
+## Shared hosting (current default)
+
+The owner requested shared hosting on 2026-10-22. Follow [SHARED_HOSTING.md](SHARED_HOSTING.md) for the current default `KQ_PROGRESSION=shared`: no persistent worker, recurring cron, systemd, or external service. Authenticated POST requests advance the same engine; GET remains read-only. More than ten seconds without successful progression technically cancels stale matches on the next POST. This is an explicit change from the original background-only architecture. The persistent-worker instructions below apply only with `KQ_PROGRESSION=worker`.
+
 ## Prerequisites and initial setup
 
 - PHP 8.2+ with PDO, `pdo_sqlite`, JSON, PCRE Unicode and a writable local filesystem. SQLite 3.25+ is required for window functions; 3.27+ for `VACUUM INTO` backups. Use a maintained SQLite build. `pcntl` is recommended on Linux for SIGINT/SIGTERM handling; `kalaqpar:stop` also works without it.
 - Production Composer installation without development dependencies supports the PHP 8.2 framework baseline. Existing locked PHPUnit development packages require PHP 8.3+ if installed; this task does not use or modify them.
-- A persistent CLI process, HTTPS, and one server using a single local-disk SQLite file. Shared hosting without a persistent process, NFS/shared network storage, multiple worker instances and multiple application servers are unsupported.
+- HTTPS and one server using a single local-disk SQLite file. Shared mode needs ordinary short PHP web requests and reliable file locking. Only worker mode requires a persistent CLI process. NFS/shared network storage and multiple application servers remain unsupported.
 - The web process and worker must use the same `.env`, database path, identity key directory and OS user/group permissions. On production use a Linux local disk, not a Windows-mounted/network directory.
 
 From the repository root:
@@ -25,8 +29,13 @@ Set these values in the existing root `.env` (do not replace host configuration 
 ```dotenv
 APP_ENV=production
 APP_DEBUG=false
+APP_URL=https://tools.example.com
+# Optional application-root override, including any deployment subdirectory:
+# KQ_PUBLIC_BASE_URL=https://tools.example.com/play
 KQ_DATABASE=/var/lib/kalaqpar/game.sqlite
 KQ_SECURE_COOKIE=true
+KQ_PROGRESSION=shared
+KQ_MAINTENANCE=false
 ```
 
 `KQ_DATABASE` defaults to `src/Modules/Kalaqpar/Files/runtime/game.sqlite`, outside `public/` and ignored by Git. Keep the database path absolute in production. The first connection creates its directory with mode 0700 and database with 0600; the worker/service should run with umask 0077. Both web and worker need directory write permission for WAL/SHM, the lock, logs, stop request, identity key and snapshots. Do not make storage world-writable. Set up production storage, for example:
@@ -37,11 +46,11 @@ sudo -u www-data php /srv/tools/pano kalaqpar kalaqpar:migrate
 sudo -u www-data php /srv/tools/pano kalaqpar kalaqpar:seed
 ```
 
-Migrations are versioned and transactional: version 1 creates prefixed tables, constraints, indexes and immutable-ledger triggers; version 2 snapshots the private answer category into each round. Repeating either command does not reset identities, scores or history. The seed contains 111 reviewed Persian names with 39 flying and 72 non-flying items. It upserts production content, not players, matches or scores. Stop the worker during schema/content maintenance.
+Migrations are versioned and transactional: version 1 creates prefixed tables, constraints, indexes and immutable-ledger triggers; version 2 snapshots the private answer category into each round; version 3 persists cleanup throttling across short web requests; version 4 migrates room invitations to permanent six-digit codes with checked, unique legacy aliases and immutable reservations. Follow README section 16 for the invitation upgrade and trusted public-base configuration. Repeating either command does not reset identities, scores or history. The seed contains 111 reviewed Persian names with 39 flying and 72 non-flying items. It upserts production content, not players, matches or scores. Stop the worker during schema/content maintenance.
 
 ## Development web and persistent worker
 
-Use two terminals from the repository root:
+For shared mode, start only `php -S 127.0.0.1:8088 -t public`. For optional worker mode, first set `KQ_PROGRESSION=worker` in `.env`, then use two terminals from the repository root:
 
 ```sh
 php -S 127.0.0.1:8088 -t public
@@ -58,7 +67,7 @@ php pano kalaqpar kalaqpar:stop
 
 Only one worker or maintenance process obtains `worker.lock` via nonblocking `flock`. A second worker fails rather than racing. The stop command writes a private stop request; the worker consumes it after its current short tick and marks itself stopped. Wait for the process to exit before migration/rebuild. On Windows, use this stop command instead of relying on POSIX signals. Workers already loaded before a code update must be restarted.
 
-The worker alone creates public matches, starts and settles rounds, handles timeouts/results, host transfer, stale queues and room expiry. Polling has no engine tick or lifecycle side effects. A POST heartbeat updates presence at most once every three seconds; the page normally sends one every 4.5 seconds. Read endpoints never enroll guests in a queue or room.
+In worker mode, the worker alone creates public matches, starts and settles rounds, handles timeouts/results, host transfer, stale queues and room expiry. In that mode polling has no engine tick or lifecycle side effects. In shared mode, every authenticated mutation first attempts a locked progression pass; POST heartbeat returns the authorized state in the same response. GET never advances the engine. A POST heartbeat updates presence at most once every three seconds; worker-mode pages normally send one every 4.5 seconds, while shared-mode pages use heartbeat for each poll. Read endpoints never enroll guests in a queue or room.
 
 ## Configuration and protocol
 
@@ -72,7 +81,7 @@ Host config `config/kalaqpar.php` loads module `Files/config.php`. Edit these mo
 | Answer window | 2500ms minus 200ms every 5 rounds, floor 1500ms |
 | Feedback interval | 2000ms, including the next-round wait |
 | Public formation after second arrival | 12000ms, or earlier at capacity |
-| Worker tick | 100ms |
+| Worker tick / shared minimum pass interval | 100ms / 200ms |
 | Successful worker heartbeat write | at most every 500ms |
 | Worker unavailable / long outage | 2000ms heartbeat age / 10000ms |
 | Offline / host transfer | 15000ms / 30000ms; immediate on explicit departure |
@@ -89,9 +98,9 @@ All API times use UTC epoch **milliseconds**. Weeks start Saturday 00:00 `Asia/T
 
 Admission is explicit. Visiting an invitation performs a limited preview; Join is a CSRF-protected POST. Active rosters are frozen. Late invitees enter a waiting list bounded by room capacity and may explicitly authorize spectating. Spectators are a subset of the waiting list, not extra answer participants. After private results, previous participants retain room membership in an unready result state. “Play again” opts them in; prior participants have admission priority and then incoming invitees have FIFO priority. The host starts manually again, freezing at most capacity. A public replay leaves results and enters a new public FIFO queue.
 
-An explicit departure during active gameplay does not delete participation or permit another engagement. The user can return; unanswered rounds still settle once at -1. Offline users do not disappear from an active roster. A countdown with fewer than two present participants is canceled without results and returns eligible players to waiting. A long worker outage technically cancels active matches, keeps already-settled ledger scores, invalidates the open round, and records no competitive wins/completed result. A short restart resumes persisted phases without duplicate settlements. Stale or explicitly stopped workers reject new answers/starts but preserve accepted answers.
+An explicit departure during active gameplay does not delete participation or permit another engagement. The user can return; unanswered rounds still settle once at -1. Offline users do not disappear from an active roster. A countdown with fewer than two present participants is canceled without results and returns eligible players to waiting. A long worker outage technically cancels active matches, keeps already-settled ledger scores, invalidates the open round, and records no competitive wins/completed result. A short restart resumes persisted phases without duplicate settlements. In worker mode, stale or explicitly stopped workers reject new answers/starts but preserve accepted answers. Shared mode attempts progression before accepting mutations; it has no daemon to stop. Use `KQ_MAINTENANCE=true` and disable web traffic during schema/restore/rebuild maintenance in either mode.
 
-Limits are independent per authenticated identity: room creation 6/minute, invitation/queue/leave/rematch/spectate/resume operations 30/minute, start 20/minute, answers 180/minute, name/avatar updates 10/minute. Bootstrap is 300/minute per hashed IP to allow users behind NAT; anonymous invitation previews are 60/minute per hashed IP. Limits and input validation are in `Identity`/`ApiHandler`; pagination is 10/page with bounded page input; API bodies are limited to 4096 bytes, with a matching web-server limit. No unrestricted CORS is enabled.
+Limits are independent per authenticated identity: room creation 6/minute, invitation/queue/leave/rematch/spectate/resume operations 30/minute, start 20/minute, answers 180/minute, name/avatar updates 10/minute. Bootstrap is 300/minute per hashed IP to allow users behind NAT; all invitation page/preview/legacy/join access shares 30/minute per resolved guest and 600/minute per hashed socket IP. Anonymous invitation requests have the IP budget; authenticated requests also consume the guest budget. Limits and input validation are in `Identity`/`ApiHandler`; pagination is 10/page with bounded page input; API bodies are limited to 4096 bytes, with a matching web-server limit. No unrestricted CORS is enabled.
 
 ## HTTP inventory
 
@@ -99,16 +108,16 @@ All routes below are under `/kalaqpar`. Pano registers them in `KalaqparModule::
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/`, `/r/[token]` | Persian interface and explicit-join invitation page |
+| GET | `/`, `/join/[code]`, `/r/[legacy-token]` | Persian interface and explicit-join invitation page |
 | GET | `/assets/[file*]` | allowlisted module CSS/JS/font/hero and hash-named SVGs |
 | POST | `/api/bootstrap` | deterministic guest bootstrap, requires page nonce header and cookie |
-| POST | `/api/heartbeat` | authenticated, CSRF-protected, throttled presence |
+| POST | `/api/heartbeat` | authenticated/CSRF-protected presence and state; shared progression; optional body `match_id` has participant authorization |
 | GET | `/api/state` | own engagement; optional `match_id` requires participation authorization |
 | GET | `/api/profile` | own profile/history, `page` |
 | POST | `/api/rename` | validate/persist name and avatar |
 | GET | `/api/leaderboard` | `period=weekly` or `all`, `page`, own rank |
-| GET | `/api/preview` | limited invitation preview by token; rate-limited |
-| GET | `/api/health` | minimal boolean `available`, no paths, PIDs or tokens |
+| GET | `/api/preview` | limited preview by `code` (legacy `token` accepted); common resolver/rate limits; returns canonical/formatted code and trusted absolute URL |
+| GET | `/api/health` | boolean `available` and `progression_mode`; shared readiness or worker freshness; no paths, PIDs or tokens |
 | POST | `/api/queue`, `/api/leave` | idempotent explicit queue enrollment or departure |
 | POST | `/api/create`, `/api/join`, `/api/start` | private room, invitation join, host-only start |
 | POST | `/api/answer` | membership/deadline checked answer acknowledgement only |
@@ -120,9 +129,9 @@ Personal JSON uses `Cache-Control: no-store`, safe error codes/messages and appr
 
 `Deployment/nginx.conf` is a complete TLS virtual-host example to merge with existing host configuration. Replace the hostname, certificate and PHP socket paths. Preserve host module routing. Keep document root at `/srv/tools/public`, never `/srv/tools` or the module directory. No source-directory alias is needed for images. Disable access logging for invitation and API routes to prevent invitation tokens/query strings from entering logs; apply the same rule to proxy/CDN/APM services. The module sets `Referrer-Policy: no-referrer`, CSP, no-store personal responses and nosniff. Do not send invitation URLs to analytics.
 
-For Apache, retain the host's public front-controller rewrite rules and public document root; add the equivalent request-size limit and exclude `/kalaqpar/r/` and `/kalaqpar/api/` requests from access logs. Do not replace the existing dirty `public/dev.htaccess` as part of this module installation. Essential assets are local and served by Pano.
+For Apache, retain the host's public front-controller rewrite rules and public document root; add the equivalent request-size limit and exclude `/kalaqpar/join/`, `/kalaqpar/r/` and `/kalaqpar/api/` requests (including any configured deployment prefix) from access logs. Do not replace the existing dirty `public/dev.htaccess` as part of this module installation. Essential assets are local and served by Pano.
 
-`Deployment/kalaqpar.service` uses the actual verified command:
+Optional worker mode only: set `KQ_PROGRESSION=worker`. `Deployment/kalaqpar.service` uses the actual verified command:
 
 ```sh
 sudo install -m 0644 src/Modules/Kalaqpar/Deployment/kalaqpar.service /etc/systemd/system/kalaqpar.service
@@ -140,7 +149,7 @@ Minimal health inspection:
 curl -fsS https://tools.example.com/kalaqpar/api/health
 ```
 
-Expect `ok:true` and `available:true`; an HTTP 200 with `available:false` means the worker is unavailable. Storage failures use safe HTTP 503. Monitor availability and `worker.log`/journald. `worker.log` has structured start/stop/error/lifecycle events with UTC time and numeric match/round IDs, never token values, cookies, names, request bodies or full URLs. API failures log only exception class to the host PHP error log. Rotate logs using a normal OS logrotate policy; no primary history is log data.
+Expect `ok:true`, `available:true` and the configured `progression_mode`. In shared mode availability means seeded/migrated content readiness with maintenance disabled; in worker mode it means fresh daemon heartbeat. An HTTP 200 with `available:false` means unavailable in that mode. Storage failures use safe HTTP 503. Monitor availability and `worker.log`/journald. `worker.log` has structured start/stop/error/lifecycle events with UTC time and numeric match/round IDs, never token values, cookies, names, request bodies or full URLs. API failures log only exception class to the host PHP error log. Rotate logs using a normal OS logrotate policy; no primary history is log data.
 
 ## Backup, restore, recovery and retention
 
@@ -160,7 +169,7 @@ Restore during a maintenance window:
 2. Preserve the current SQLite file and any WAL/SHM as a stopped, consistent rollback set. Move the complete stopped set aside; do not mix old WAL with a restored main file.
 3. Copy the chosen snapshot to the configured database path and restore the matching `identity.key`. Restore ownership `www-data:www-data`, directory 0700, files 0600. Only after all old connections are closed, remove/move obsolete WAL/SHM files from the restored path.
 4. Inspect with `sqlite3 /var/lib/kalaqpar/game.sqlite 'PRAGMA integrity_check;'` (expect `ok`). Use a schema-compatible application release, then run the explicit module migrations if needed. Migration and content commands do not erase game history.
-5. Start web and worker. A snapshot with matches older than the outage threshold intentionally causes technical cancellation; never simulate elapsed rounds or manufacture competitive wins. Check health and review structured logs/history.
+5. Start web and, only in worker mode, the worker. A snapshot with matches older than the outage threshold intentionally causes technical cancellation; never simulate elapsed rounds or manufacture competitive wins. Check health and review structured logs/history.
 
 Rebuild cached account/match scores and finished result ranks/wins from the immutable ledger, with the worker stopped and web mutations disabled:
 
@@ -217,3 +226,12 @@ Additional completed operational observations:
 - The final implementation also refreshes home statistics about every 15 seconds and visible leaderboard data about every 10 seconds without resetting profile input drafts. Empty/unready prior members are displayed separately from the next roster candidates; waiting-list and spectator counts remain separate.
 
 Final configuration lint: `systemd-analyze verify src/Modules/Kalaqpar/Deployment/kalaqpar.service` returned success outside the sandbox. The Windows-mounted workspace reports executable/world-writable source mode warnings; the documented `install -m 0644` sets the correct installed unit permissions. This is unit validation, not service deployment.
+
+## Shared-host follow-up verification
+
+See the current observations in [SHARED_HOSTING.md](SHARED_HOSTING.md). Earlier worker-only observations above describe the original deployment mode and do not establish browser or hosting-provider acceptance of shared mode. No test code was written or modified for this change.
+
+
+## Six-digit invitation upgrade (2026-10-22)
+
+Current English/Persian contract, migration commands, permanent code reservations, trusted URLs, legacy aliases, changed files and actual permitted manual verification are synchronized in [README.md, section 16](README.md#16-six-digit-invitations-and-links-owner-update-2026-10-22) and [README.fa.md](README.fa.md). Apply migration 4 during maintenance after backup; no invitation-upgrade reseed is required. New shared links always use `<trusted public application root>/kalaqpar/join/<six ASCII digits>`. Code entry, URL entry, old links, preview and POST Join share the same invitation service and server budgets. The new host integration is only the Pano request subclass selected by `DefaultFoundation::request()` for configured Kalaqpar subdirectory routing; no vendor or public entry point changes.

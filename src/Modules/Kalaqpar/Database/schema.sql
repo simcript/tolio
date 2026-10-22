@@ -1,3 +1,5 @@
+-- Base schema (migration 1). Migration 4 adds legacy_invitation and applies
+-- Database/invitations.sql: ASCII code validation, immutable codes, reservations.
 CREATE TABLE kalaqpar_users (
  id INTEGER PRIMARY KEY, public_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
  avatar INTEGER NOT NULL CHECK(avatar BETWEEN 0 AND 5), created_at INTEGER NOT NULL,

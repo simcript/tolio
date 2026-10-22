@@ -45,15 +45,9 @@ final class State
         $count = $this->db->one($base . 'SELECT COUNT(*) n FROM ranked', $params)['n'];
         return ['period' => $period, 'page' => $page, 'pages' => (int) ceil($count / $size), 'rows' => $rows, 'me' => $me, 'week_start' => $start, 'week_end' => $end];
     }
-    public function preview(string $token): array
+    public function preview(mixed $token): array
     {
-        if (!preg_match('/^[a-f0-9]{48}$/D', $token)) { throw new GameError('invalid_invitation', 'لینک دعوت معتبر نیست.', 404); }
-        $r = $this->db->one("SELECT id,name,capacity,phase FROM kalaqpar_rooms WHERE invitation=? AND mode='private'", [$token]);
-        if (!$r) { throw new GameError('invalid_invitation', 'لینک دعوت معتبر نیست.', 404); }
-        // No host identity, member names, IDs, answers, or live item in preview.
-        $roomMatch = $this->db->one('SELECT current_match_id FROM kalaqpar_rooms WHERE id=?', [$r['id']]);
-        $count = $this->db->one("SELECT COUNT(*) n FROM kalaqpar_engagements WHERE room_id=? AND kind IN ('lobby','waiting')" . ($roomMatch['current_match_id'] ? ' AND priority=1' : ''), [$r['id']])['n'];
-        return ['name' => $r['name'], 'capacity' => $r['capacity'], 'phase' => $r['phase'], 'available' => max(0, $r['capacity'] - $count)];
+        return (new Invitation($this->db, $this->settings))->preview($token);
     }
     public function forUser(int $id, ?int $requestedMatch = null): array
     {
@@ -61,7 +55,7 @@ final class State
             $now = Settings::now();
             $worker = (new Engine($this->db, $this->settings))->healthy();
             $e = $this->db->one('SELECT * FROM kalaqpar_engagements WHERE user_id=?', [$id]);
-            $state = ['server_now' => $now, 'worker_available' => $worker, 'phase' => 'idle', 'scope' => 'me', 'state_version' => 0,
+            $state = ['server_now' => $now, 'worker_available' => $worker, 'progression_mode' => $this->settings['progression'] ?? 'worker', 'phase' => 'idle', 'scope' => 'me', 'state_version' => 0,
                 'room_id' => null, 'match_id' => null, 'role' => null, 'engagement' => $e ? $e['kind'] : null];
             if ($requestedMatch) {
                 $m = $this->db->one('SELECT m.* FROM kalaqpar_matches m JOIN kalaqpar_match_players p ON p.match_id=m.id AND p.user_id=? WHERE m.id=?', [$id, $requestedMatch]);
@@ -88,7 +82,9 @@ final class State
             $state = array_replace($state, ['room_id' => $room['id'], 'scope' => 'room:' . $room['id'], 'state_version' => $room['version'],
                 'room_name' => $room['name'], 'mode' => $room['mode'], 'capacity' => $room['capacity'], 'phase' => $room['phase'],
                 'role' => $room['host_id'] === $id ? 'host' : 'guest', 'host_id' => null, 'ready' => (bool) $e['ready'],
-                'invitation' => $room['invitation'], 'departed' => (bool) $e['departed']]);
+                'departed' => (bool) $e['departed']]);
+            $invitations = new Invitation($this->db, $this->settings);
+            if ($invitations->valid($room)) { $state += $invitations->details($room); }
             $members = $this->db->all('SELECT e.*,u.public_id,u.name,u.avatar,u.seen_at FROM kalaqpar_engagements e JOIN kalaqpar_users u ON u.id=e.user_id WHERE e.room_id=? ORDER BY e.priority,e.joined_at,e.user_id', [$room['id']]);
             $eligible = array_slice(array_filter($members, fn ($u) => $u['ready'] && !$u['departed'] && $u['seen_at'] > $now - $this->settings['offline_ms']), 0, $room['capacity']);
             $admitted = array_column($eligible, 'user_id');
@@ -133,7 +129,7 @@ final class State
             $state['starts_at'] = $r['starts_at'];
             $state['deadline_at'] = $r['deadline_at'];
             if (Settings::now() >= $r['starts_at']) {
-                $state['item'] = ['name' => $r['name'], 'image' => '/kalaqpar/assets/items/' . $r['asset'] . '.svg'];
+                $state['item'] = ['name' => $r['name'], 'image' => PublicUrl::path($this->settings) . '/assets/items/' . $r['asset'] . '.svg'];
             }
             $answer = $participant ? $this->db->one('SELECT action,request_id,accepted_at FROM kalaqpar_responses WHERE round_id=? AND user_id=?', [$r['id'], $id]) : null;
             $state['answer'] = $answer;

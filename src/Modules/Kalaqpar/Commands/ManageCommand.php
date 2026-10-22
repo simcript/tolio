@@ -16,6 +16,10 @@ final class ManageCommand extends BaseCommand
             $f = new Factory();
             $command = $this->request->getSegments()[0];
             if ($command === 'kalaqpar:stop') {
+                if ($f->settings['progression'] === 'shared') {
+                    $this->info('Shared mode has no daemon to stop. Use KQ_MAINTENANCE=true to pause mutations.');
+                    return ResultCodeEnum::OK;
+                }
                 if (!$f->db->one('SELECT running FROM kalaqpar_worker_status WHERE id=1')['running']) {
                     $this->info('Worker is already stopped.');
                     return ResultCodeEnum::OK;
@@ -53,6 +57,8 @@ final class ManageCommand extends BaseCommand
     }
     private function worker(Factory $f): void
     {
+        if ($f->settings['progression'] !== 'worker') { throw new \RuntimeException('Set KQ_PROGRESSION=worker to run a persistent worker; shared mode needs no daemon.'); }
+        if ($f->settings['maintenance'] ?? false) { throw new \RuntimeException('Disable KQ_MAINTENANCE before starting the worker.'); }
         $content = $f->db->one('SELECT COUNT(*) n, SUM(can_fly) flying FROM kalaqpar_items WHERE enabled=1');
         if ($content['n'] < 100 || $content['flying'] < 30) { throw new \RuntimeException('Run kalaqpar:seed before starting the worker.'); }
         set_time_limit(0);

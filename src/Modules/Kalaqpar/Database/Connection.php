@@ -17,9 +17,12 @@ final class Connection
             throw new \RuntimeException('Cannot create private game storage.');
         }
         $realDirectory = realpath($directory);
-        $public = realpath(dirname(__DIR__, 4) . '/public');
-        if ($public && $realDirectory && ($realDirectory === $public || str_starts_with($realDirectory, $public . DIRECTORY_SEPARATOR))) {
-            throw new \RuntimeException('Game storage must be outside public.');
+        $publicRoots = [realpath(dirname(__DIR__, 4) . '/public')];
+        if (!empty($_SERVER['DOCUMENT_ROOT'])) { $publicRoots[] = realpath($_SERVER['DOCUMENT_ROOT']); }
+        foreach ($publicRoots as $public) {
+            if ($public && $realDirectory && ($realDirectory === $public || str_starts_with($realDirectory, $public . DIRECTORY_SEPARATOR))) {
+                throw new \RuntimeException('Game storage must be outside public.');
+            }
         }
         $this->pdo = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
         $this->pdo->exec('PRAGMA busy_timeout=1000; PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;');

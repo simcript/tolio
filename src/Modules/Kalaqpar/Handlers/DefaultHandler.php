@@ -5,6 +5,9 @@ use Pano\Foundation\Response;
 use Pano\Kernel\BaseHandler;
 use Pano\Kernel\HttpStatusEnum;
 use Src\Modules\Kalaqpar\Services\Identity;
+use Src\Modules\Kalaqpar\Services\Factory;
+use Src\Modules\Kalaqpar\Services\GameError;
+use Src\Modules\Kalaqpar\Services\PublicUrl;
 
 final class DefaultHandler extends BaseHandler
 {
@@ -12,12 +15,20 @@ final class DefaultHandler extends BaseHandler
     public function home(): Response { return $this->page(''); }
     private function page(string $token): Response
     {
+        $error = '';
+        $status = HttpStatusEnum::OK;
+        if ($token !== '') {
+            try { (new Factory())->identity()->limitInvitation(); }
+            catch (GameError $e) { $error = $e->getMessage(); $status = HttpStatusEnum::from($e->status); }
+            catch (\Throwable) { $error = 'سرویس بازی آماده نیست؛ کمی بعد دوباره تلاش کن.'; $status = HttpStatusEnum::SERVICE_UNAVAILABLE; }
+        }
         $nonce = $_COOKIE['kq_boot'] ?? '';
         if (!is_string($nonce) || !preg_match('/^[a-f0-9]{64}$/D', $nonce)) {
             $nonce = bin2hex(random_bytes(32));
             Identity::cookie('kq_boot', $nonce, time() + 86400);
         }
-        return Response::html($this->module->view()->with(['nonce' => $nonce, 'invitation' => $token])->layout('layout')->render('home'), headers: [
+        return Response::html($this->module->view()->with(['nonce' => $nonce, 'invitation' => substr($token, 0, 160),
+            'base_path' => PublicUrl::path(), 'initial_error' => $error])->layout('layout')->render('home'), $status, headers: [
             'Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer', 'X-Content-Type-Options' => 'nosniff',
             'Content-Security-Policy' => "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
         ]);

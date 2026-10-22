@@ -16,6 +16,11 @@ use Src\Modules\RedJson\RedJsonModule;
 
 class DefaultFoundation extends Foundation
 {
+    public static function request(): string
+    {
+        return \Src\Modules\Kalaqpar\Http\Request::class;
+    }
+
     protected static array $modules = [
         '' => [
             'class' => DefaultModule::class,

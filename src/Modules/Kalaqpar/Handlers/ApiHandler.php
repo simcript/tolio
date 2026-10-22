@@ -6,6 +6,7 @@ use Pano\Kernel\BaseHandler;
 use Pano\Kernel\HttpStatusEnum;
 use Src\Modules\Kalaqpar\Services\Factory;
 use Src\Modules\Kalaqpar\Services\GameError;
+use Src\Modules\Kalaqpar\Services\Progression;
 use Src\Modules\Kalaqpar\Services\Settings;
 
 final class ApiHandler extends BaseHandler
@@ -28,11 +29,15 @@ final class ApiHandler extends BaseHandler
             if ($headers['origin'] !== $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '')) { throw new GameError('origin', 'مبدأ درخواست معتبر نیست.', 403); }
         }
     }
-    private function run(callable $work, bool $post = false, string $scope = '', int $limit = 30, bool $bootstrap = false, bool $anonymous = false): Response
+    private function run(callable $work, bool $post = false, string $scope = '', int $limit = 30, bool $bootstrap = false, bool $anonymous = false, bool $invitationAccess = false): Response
     {
         try {
             if ($post) { $this->origin(); $body = $this->body(); } else { $body = []; }
-            $factory = new Factory(); $identity = $factory->identity();
+            $factory = new Factory();
+            if ($post && ($factory->settings['maintenance'] ?? false)) {
+                throw new GameError('maintenance', 'سرویس بازی موقتاً برای نگهداری بسته است؛ کمی بعد برگرد.', 503);
+            }
+            $identity = $factory->identity();
             $u = null;
             if ($bootstrap) {
                 $nonce = $this->request->getHeaders()['x-kq-boot'] ?? '';
@@ -44,7 +49,11 @@ final class ApiHandler extends BaseHandler
                 if ($post && !hash_equals($u['csrf'], $this->request->getHeaders()['x-kq-csrf'] ?? '')) { throw new GameError('csrf', 'صفحه را تازه کن.', 403); }
             }
             if ($scope !== '') { $identity->limit($u ? 'u:' . $u['id'] : hash('sha256', $_SERVER['REMOTE_ADDR'] ?? 'local'), $scope, $limit); }
-            if ($post && $u) { $identity->touch($u['id']); }
+            if ($invitationAccess) { $identity->limitInvitation($u); }
+            if ($post && $u) {
+                $identity->touch($u['id']);
+                Progression::pulse($factory);
+            }
             $result = $work($factory, $u, $body);
             return $this->json(['ok' => true, 'server_now' => Settings::now()] + ($result ?? []));
         } catch (GameError $e) {
@@ -66,18 +75,21 @@ final class ApiHandler extends BaseHandler
     }
     private function page(): int { return max(1, min(10000, (int) ($this->request->getQueries()['page'] ?? 1))); }
     public function bootstrap(): Response { return $this->run(fn ($f, $u) => ['csrf' => $u['csrf'], 'profile' => $f->state()->profile($u['id']), 'state' => $f->state()->forUser($u['id'])], true, bootstrap: true); }
-    public function heartbeat(): Response { return $this->run(fn () => [], true); }
+    public function heartbeat(): Response
+    {
+        return $this->run(fn ($f, $u, $b) => ['state' => $f->state()->forUser($u['id'], isset($b['match_id']) ? (int) $b['match_id'] : null)], true);
+    }
     public function state(): Response { return $this->run(fn ($f, $u) => ['state' => $f->state()->forUser($u['id'], isset($this->request->getQueries()['match_id']) ? (int) $this->request->getQueries()['match_id'] : null)]); }
     public function profile(): Response { return $this->run(fn ($f, $u) => ['profile' => $f->state()->profile($u['id'], $this->page())]); }
     public function leaderboard(): Response
     {
         return $this->run(fn ($f, $u) => ['leaderboard' => $f->state()->leaderboard($u['id'], ($this->request->getQueries()['period'] ?? '') === 'all' ? 'all' : 'weekly', $this->page())]);
     }
-    public function preview(): Response { return $this->run(fn ($f) => ['room' => $f->state()->preview((string) ($this->request->getQueries()['token'] ?? ''))], scope: 'preview', limit: 60, anonymous: true); }
-    public function health(): Response { return $this->run(fn ($f) => ['available' => $f->engine()->healthy()], anonymous: true); }
+    public function preview(): Response { return $this->run(fn ($f) => ['room' => $f->state()->preview($this->request->getQueries()['code'] ?? $this->request->getQueries()['token'] ?? '')], anonymous: true, invitationAccess: true); }
+    public function health(): Response { return $this->run(fn ($f) => ['available' => $f->engine()->healthy(), 'progression_mode' => $f->settings['progression']], anonymous: true); }
     public function queue(): Response { return $this->run(function ($f, $u) { $f->engine()->queue($u['id']); return ['state' => $f->state()->forUser($u['id'])]; }, true, 'join', 30); }
     public function create(): Response { return $this->run(fn ($f, $u, $b) => $f->engine()->create($u['id'], $b), true, 'create', 6); }
-    public function join(): Response { return $this->run(function ($f, $u, $b) { $f->engine()->join($u['id'], is_string($b['invitation'] ?? null) ? $b['invitation'] : ''); return []; }, true, 'join', 30); }
+    public function join(): Response { return $this->run(function ($f, $u, $b) { $f->engine()->join($u['id'], is_string($b['invitation'] ?? null) ? $b['invitation'] : ''); return []; }, true, 'join', 30, invitationAccess: true); }
     public function leave(): Response { return $this->run(function ($f, $u) { $f->engine()->leave($u['id']); return []; }, true, 'join', 30); }
     public function start(): Response { return $this->run(function ($f, $u, $b) { $f->engine()->start($u['id'], $this->roomId($b)); return []; }, true, 'start', 20); }
     public function answer(): Response { return $this->run(fn ($f, $u, $b) => $f->engine()->answer($u['id'], $b), true, 'answer', 180); }

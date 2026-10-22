@@ -3,7 +3,17 @@ namespace Src\Modules\Kalaqpar\Services;
 
 final class Settings
 {
-    public static function values(): array { return config('kalaqpar', []) ?: require dirname(__DIR__) . '/Files/config.php'; }
+    public static function values(): array
+    {
+        $values = config('kalaqpar', []) ?: require dirname(__DIR__) . '/Files/config.php';
+        $values['progression'] ??= 'shared';
+        if (!in_array($values['progression'], ['shared', 'worker'], true)) {
+            throw new \RuntimeException('KQ_PROGRESSION must be shared or worker.');
+        }
+        $values['maintenance'] = filter_var($values['maintenance'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($values['maintenance'] === null) { throw new \RuntimeException('KQ_MAINTENANCE must be true or false.'); }
+        return $values;
+    }
     public static function now(): int { return (int) floor(microtime(true) * 1000); }
     public static function name(mixed $name, int $max = 30): string
     {

@@ -23,6 +23,13 @@ final class Engine
     }
     public function healthy(): bool
     {
+        if ($this->settings['maintenance'] ?? false) { return false; }
+        if (!$this->db->one('SELECT version FROM kalaqpar_migrations WHERE version=4')) { return false; }
+        if (($this->settings['progression'] ?? 'worker') === 'shared') {
+            // An idle shared host has no daemon heartbeat. Report content readiness.
+            $content = $this->db->one('SELECT COUNT(*) n, SUM(can_fly) flying FROM kalaqpar_items WHERE enabled=1');
+            return $content['n'] >= 100 && $content['flying'] >= 30;
+        }
         $w = $this->db->one('SELECT * FROM kalaqpar_worker_status WHERE id=1');
         return $w && $w['running'] === 1 && $w['heartbeat'] > $this->now() - $this->settings['health_ms'];
     }
@@ -72,26 +79,24 @@ final class Engine
         if (!$capacity || $capacity < 2 || $capacity > 30) { throw new GameError('capacity', 'ظرفیت باید از ۲ تا ۳۰ نفر باشد.', 422); }
         return $this->db->atomic(function () use ($id, $name, $capacity) {
             $this->free($id);
-            $invitation = bin2hex(random_bytes(24));
+            PublicUrl::base($this->settings);
             $now = $this->now();
-            $this->db->run("INSERT INTO kalaqpar_rooms(mode,name,capacity,invitation,host_id,created_at) VALUES ('private',?,?,?,?,?)", [$name, $capacity, $invitation, $id, $now]);
+            Invitation::allocate($this->db, fn ($code) => $this->db->run("INSERT INTO kalaqpar_rooms(mode,name,capacity,invitation,host_id,created_at) VALUES ('private',?,?,?,?,?)", [$name, $capacity, $code, $id, $now]));
             $room = $this->db->id();
             $this->db->run("INSERT INTO kalaqpar_engagements(user_id,kind,room_id,joined_at,priority) VALUES (?,'lobby',?,?,0)", [$id, $room, $now]);
-            return ['room_id' => $room, 'invitation' => $invitation];
+            return ['room_id' => $room] + (new Invitation($this->db, $this->settings))->details($this->room($room));
         });
     }
     public function join(int $id, string $invitation): void
     {
         $this->db->atomic(function () use ($id, $invitation) {
-            $room = $this->db->one("SELECT * FROM kalaqpar_rooms WHERE invitation=? AND mode='private'", [$invitation]);
-            if (!$room) { throw new GameError('invalid_invitation', 'لینک دعوت معتبر نیست.', 404); }
-            $room = $this->room($room['id']);
+            $invitations = new Invitation($this->db, $this->settings);
+            $room = $invitations->resolve($invitation, $this->now());
             $e = $this->engagement($id);
             if ($e && $e['room_id'] === $room['id']) { return; }
             $this->free($id);
             $active = $room['phase'] === 'playing';
-            $count = (int) $this->db->one("SELECT COUNT(*) n FROM kalaqpar_engagements WHERE room_id=? AND kind IN ('lobby','waiting')" . ($room['current_match_id'] ? ' AND priority=1' : ''), [$room['id']])['n'];
-            if ($count >= $room['capacity']) { throw new GameError($active ? 'waiting_full' : 'room_full', $active ? 'فهرست انتظار دست بعدی پر است.' : 'ظرفیت اتاق پر شده است.'); }
+            if (!$invitations->available($room)) { throw new GameError($active ? 'waiting_full' : 'room_full', $active ? 'فهرست انتظار دست بعدی پر است.' : 'ظرفیت اتاق پر شده است.'); }
             $this->db->run('INSERT INTO kalaqpar_engagements(user_id,kind,room_id,joined_at) VALUES (?,?,?,?)', [$id, $active ? 'waiting' : 'lobby', $room['id'], $this->now()]);
             $this->bump($room['id']);
         });
@@ -242,9 +247,9 @@ final class Engine
         foreach ($this->db->all("SELECT id FROM kalaqpar_matches WHERE phase IN ('countdown','round_active','round_feedback')") as $row) {
             $this->db->atomic(fn () => $this->advance($row['id']));
         }
-        // Cleanup and host transfer once per second; polling never progresses games.
-        if ((int) ($this->now() / 1000) !== $this->lastCleanup) {
-            $this->lastCleanup = (int) ($this->now() / 1000);
+        // Persist the cleanup throttle: shared-host requests create fresh Engine objects.
+        $cleanup = $this->db->one('SELECT cleanup_at FROM kalaqpar_worker_status WHERE id=1')['cleanup_at'];
+        if ($cleanup <= $this->now() - 1000) {
             foreach ($this->db->all("SELECT id FROM kalaqpar_rooms WHERE phase<>'closed'") as $row) {
                 $this->db->atomic(function () use ($row) {
                     $r = $this->room($row['id']); $now = $this->now();
@@ -263,16 +268,16 @@ final class Engine
             $this->db->atomic(function () {
                 $this->db->run('DELETE FROM kalaqpar_tokens WHERE expires_at<?', [$this->now()]);
                 $this->db->run('DELETE FROM kalaqpar_limits WHERE bucket<?', [(int) floor(time() / 60) - 1440]);
+                $this->db->run('UPDATE kalaqpar_worker_status SET cleanup_at=? WHERE id=1', [$this->now()]);
             });
         }
         // Report successful progression, not merely a loop which keeps failing.
         $now = $this->now();
         $status = $this->db->one('SELECT heartbeat,running FROM kalaqpar_worker_status WHERE id=1');
-        if (!$status['running'] || $status['heartbeat'] < $now - 500) {
+        if (($this->settings['progression'] ?? 'worker') === 'shared' || !$status['running'] || $status['heartbeat'] < $now - 500) {
             $this->db->atomic(fn () => $this->db->run('UPDATE kalaqpar_worker_status SET heartbeat=?,running=1 WHERE id=1', [$this->now()]));
         }
     }
-    private int $lastCleanup = 0;
     private function matchmaking(): void
     {
         $now = $this->now();
