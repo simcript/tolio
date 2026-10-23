@@ -13,15 +13,9 @@ const card = (...children) => append(node('div', 'kq-card'), ...children);
 const note = (title, detail = '', color = 'kq-yellow') => append(node('div', 'kq-note ' + color), node('h3', '', title), detail ? p(detail) : null);
 let csrf = '', profile = null, state = null, page = 'home', viewEpoch = 0, fingerprint = '', lastHeartbeat = 0, lastProfile = 0, lastLeaders = 0;
 let invitation = root.dataset.invitation || '', preview = null, requestedMatch = null, offset = 0, samples = [], pollTimer = null;
-let codeDraft = '';
+let codeDraft = '', connected = true;
 let polling = false, activePoll = null, failures = 0, booted = false, pending = null, pendingSending = false, answerError = '', roundSeen = 0;
 let leaders = null, leaderPeriod = 'weekly', leaderPage = 1, historyPage = 1, colorDraft = 0, previousHost = null, previousRoom = null, navigating = false;
-const storage = {
- get(k) { try { return localStorage.getItem(k); } catch { return null; } },
- set(k,v) { try { localStorage.setItem(k,v); } catch {} },
- remove(k) { try { localStorage.removeItem(k); } catch {} }
-};
-const pendingKey = () => 'kq-answer:' + profile.id;
 const message = text => { $('kq-message').textContent = text; $('kq-message').hidden = !text; };
 function button(text, action, cls = '', disabled = false) {
  const b = node('button', 'kq-button ' + cls, text); b.type = 'button'; b.disabled = disabled;
@@ -30,7 +24,7 @@ function button(text, action, cls = '', disabled = false) {
 }
 function link(text, action) { return button(text, action, 'kq-link'); }
 function avatar(name, color, big = false) { const a = node('span', 'kq-avatar' + (big ? ' kq-big' : ''), [...(name || 'م')][0]); a.dataset.color = color ?? 2; a.setAttribute('aria-hidden','true'); return a; }
-function hero(title, subtitle = '', crow = true) { const box = node('div','kq-hero'); if (subtitle) box.append(node('div','kq-eyebrow',subtitle)); if (crow) { const img = node('img'); img.src=base+'/assets/hero.svg'; img.alt='تصویر کلاغ'; box.append(img); } box.append(node('h2','',title)); return box; }
+function hero(title, subtitle = '', crow = true) { const box = node('div','kq-hero'); if (subtitle) box.append(node('div','kq-eyebrow',subtitle)); if (crow) { const img = node('img'); img.src=root.dataset.hero; img.alt='تصویر کلاغ'; box.append(img); } box.append(node('h2','',title)); return box; }
 function stats(entries) { return append(node('div','kq-stats'), entries.map(([value,label]) => append(node('div','kq-stat'),node('strong','',fa(value)),node('small','',label)))); }
 function heading(title, subtitle='') { $('kq-title').textContent=title; $('kq-subtitle').textContent=subtitle; $('kq-back').hidden=page==='home'; $('kq-nav').hidden=page==='game' || page==='invite'; root.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page)); }
 function rows(players, lobby=false) {
@@ -52,13 +46,14 @@ async function api(path, body, extraHeaders={}) {
   if (typeof data.server_now==='number') { samples.push({rtt:received-sent,value:data.server_now-(sent+received)/2}); samples=samples.slice(-9); const best=[...samples].sort((a,b)=>a.rtt-b.rtt).slice(0,3); offset=best.reduce((sum,s)=>sum+s.value,0)/best.length; }
   if (!response.ok || !data.ok) { const error=new Error(data.error?.message || 'سرویس بازی در دسترس نیست.'); error.code=data.error?.code || 'network'; error.status=response.status; throw error; }
   return data;
- } catch(e) { if (e.name==='AbortError' || e instanceof TypeError || e instanceof SyntaxError) { const error=new Error('ارتباط قطع شد؛ در حال اتصال مجدد…'); error.code='network'; throw error; } throw e; }
+ } catch(e) { if (e.name==='AbortError' || e instanceof TypeError || e instanceof SyntaxError) { connected=false;const error=new Error('ارتباط قطع شد؛ بازی چندنفره به اینترنت نیاز دارد. پاسخ آفلاین ارسال نمی‌شود.'); error.code='network'; throw error; } throw e; }
  finally {clearTimeout(timeout);}
 }
 function syncPending() {
- if (!profile) return;
- try { const saved=JSON.parse(storage.get(pendingKey())); if (saved && saved.match_id===state?.match_id && saved.round_id===state?.round_id) pending=saved; else if (pending?.round_id!==state?.round_id || pending?.match_id!==state?.match_id) pending=null; } catch {pending=null;}
- if (state?.answer) { pending=null; storage.remove(pendingKey()); answerError=''; }
+ // In-flight choices live only in memory. A fresh authoritative state resolves
+ // uncertain acknowledgements; never restore or replay answers after reconnect.
+ if (state?.answer || !pendingSending) pending=null;
+ if (state?.answer) answerError='';
 }
 function acceptState(s) {
  if (state?.scope===s.scope && s.state_version<state.state_version) return false;
@@ -67,6 +62,7 @@ function acceptState(s) {
  previousRoom=s.room_id;
  if (s.host_id) previousHost=s.host_id;
  state=s;
+ root.dataset.kqBusy=String(!!s.engagement || ['queue','lobby','waiting','countdown','round_active','round_feedback'].includes(s.phase));
  if (oldRound!==s.round_id || oldMatch!==s.match_id) { roundSeen=performance.now()-Math.max(0,Date.now()+offset-(s.starts_at || Date.now()+offset)); answerError=''; pending=null; }
  syncPending();
  $('kq-worker').hidden=s.worker_available;
@@ -203,7 +199,7 @@ function renderRound() {
   const skip=button('رد کن',()=>choose('skip'),'kq-answer kq-yellow',locked);skip.dataset.answer='skip';skip.append(node('span','','×'),node('small','','پرواز نمی‌کنه · ↓'));
   content.append(fly,skip);
   const acknowledgement=node('div','kq-action-note',state.answer?'پاسخ ثبت شد.':pending?'در حال ثبت پاسخ؛ انتخابت قفل شده…':'در هر دور فقط یک انتخاب؛ اشتباه یعنی ۱− امتیاز.');acknowledgement.id='kq-ack';content.append(acknowledgement);
-  if(pending && answerError)content.append(button('تلاش دوباره برای همین پاسخ',sendPending,'kq-white'));
+  if(answerError)content.append(note('ثبت پاسخ تأیید نشد',answerError));
  } else content.append(note('در حال تماشای مسابقه هستی','پاسخ‌دادن فقط برای شرکت‌کنندگان این دست ممکن است.','kq-lavender'));
  content.append(node('div','kq-topline',(state.players || []).slice(0,3).map(u=>u.name+' '+fa(u.score)).join(' · ')));
  content.append(link('خروج از صفحه بازی',leave));
@@ -305,14 +301,14 @@ async function leave() {
 async function openMatch(id){requestedMatch=Number(id);page='game';viewEpoch++;fingerprint='';await refresh(true);render(true);}
 function uuid(){if(crypto.randomUUID)return crypto.randomUUID();const bytes=crypto.getRandomValues(new Uint8Array(16));return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}
 async function choose(action){
- if(!state || state.phase!=='round_active' || state.role!=='participant' || state.answer || pending || !state.worker_available || Date.now()+offset>=state.deadline_at)return;
+ if(!connected || failures || !state || state.phase!=='round_active' || state.role!=='participant' || state.answer || pending || !state.worker_available || Date.now()+offset>=state.deadline_at)return;
  syncPending();if(pending || state.answer)return;
- pending={match_id:state.match_id,round_id:state.round_id,action,request_id:uuid(),client_elapsed_ms:Math.max(0,Math.round(performance.now()-roundSeen))};storage.set(pendingKey(),JSON.stringify(pending));render(true);await sendPending();
+ pending={match_id:state.match_id,round_id:state.round_id,action,request_id:uuid(),client_elapsed_ms:Math.max(0,Math.round(performance.now()-roundSeen))};render(true);await sendPending();
 }
 async function sendPending(){
- if(!pending || pendingSending || state?.answer || !state?.worker_available)return;
+ if(!connected || failures || !pending || pendingSending || state?.answer || !state?.worker_available || state.phase!=='round_active' || Date.now()+offset>=state.deadline_at)return;
  const operation={...pending};pendingSending=true;
- try{const accepted=await api('answer',operation);if(state?.round_id===operation.round_id && state?.match_id===operation.match_id){state.state_version=Math.max(state.state_version,accepted.state_version);state.answer={action:operation.action,request_id:operation.request_id};pending=null;storage.remove(pendingKey());answerError='';render(true);}await refresh();}
+ try{const accepted=await api('answer',operation);if(state?.round_id===operation.round_id && state?.match_id===operation.match_id){state.state_version=Math.max(state.state_version,accepted.state_version);state.answer={action:operation.action,request_id:operation.request_id};pending=null;answerError='';render(true);}await refresh();}
  catch(e){answerError=e.message;if(e.code && !['network','service_unavailable','worker_unavailable'].includes(e.code)){await refresh(true);}message(e.message);render(true);}
  finally{pendingSending=false;}
 }
@@ -333,19 +329,20 @@ async function pollOnce(){
   if(data.state.phase==='idle' && previous?.match_id && data.state.last_match_id===previous.match_id && ['countdown','round_active','round_feedback'].includes(previous.phase) && page==='game'){
    requestedMatch=previous.match_id;data=await api('state?match_id='+previous.match_id);if(epoch!==viewEpoch)return;
   }
-  acceptState(data.state);failures=0;$('kq-connection').hidden=true;render();
+  connected=true;acceptState(data.state);failures=0;$('kq-connection').hidden=true;$('kq-reconnect').hidden=true;render();
   if(page==='home' && Date.now()-lastProfile>15000){const fresh=await api('profile');if(epoch===viewEpoch && page==='home'){profile=fresh.profile;lastProfile=Date.now();render();}}
   if(page==='leaders' && Date.now()-lastLeaders>10000){const fresh=await api('leaderboard?period='+leaderPeriod+'&page='+leaderPage);if(epoch===viewEpoch && page==='leaders'){leaders=fresh.leaderboard;lastLeaders=Date.now();drawLeaders();}}
-  if(pending && state.phase==='round_active' && !pendingSending && (!answerError || failures===0))setTimeout(()=>sendPending(),700+Math.random()*300);
- }catch(e){failures++;$('kq-connection').hidden=false;$('kq-connection').textContent=navigator.onLine?'ارتباط ناپایدار است؛ در حال اتصال مجدد…':'آفلاین هستی؛ پاسخ انتخاب‌شده محفوظ است.';if(e.status===401){message('هویت مهمان منقضی شده؛ صفحه را تازه کن.');}else if(e.code!=='network')message(e.message);}
+ }catch(e){failures++;$('kq-reconnect').hidden=false;$('kq-connection').hidden=false;$('kq-connection').textContent='اتصال به بازی برقرار نیست؛ مسابقه به اینترنت نیاز دارد. پاسخ آفلاین ارسال نمی‌شود؛ در حال دریافت دوبارهٔ وضعیت از سرور…';if(e.status===401){message('هویت مهمان منقضی شده؛ صفحه را تازه کن.');}else if(e.code!=='network')message(e.message);}
  finally{polling=false;}
 }
 function schedule(ms){clearTimeout(pollTimer);pollTimer=setTimeout(async()=>{await refresh();const fast=page==='game' && ['round_active','round_feedback','countdown'].includes(state?.phase);const delay=failures?Math.min(15000,700*2**Math.min(failures,5))*(.8+Math.random()*.4):document.hidden?4000:fast?300:state?.engagement?1000:5000;schedule(delay);},ms);}
 function animate(){
- const clock=$('kq-clock');if(clock && state){const now=Date.now()+offset;const left=Math.max(0,(state.phase==='queue'?state.next_at:state.phase==='round_active'?state.deadline_at:state.next_at)-now);
+ const clock=$('kq-clock');
+ if(!connected || failures){if(clock)clock.textContent='اتصال قطع است؛ زمان معتبر از سرور دریافت می‌شود.';root.querySelectorAll('[data-answer]').forEach(b=>b.disabled=true);requestAnimationFrame(animate);return;}
+ if(clock && state){const now=Date.now()+offset;const left=Math.max(0,(state.phase==='queue'?state.next_at:state.phase==='round_active'?state.deadline_at:state.next_at)-now);
  if(state.phase==='queue'){clock.textContent=state.next_at?fa(Math.ceil(left/1000)):'…';const waited=$('kq-waited');if(waited)waited.textContent='زمان انتظار: '+fa(Math.max(0,Math.floor((now-state.joined_at)/1000)))+' ثانیه';}
  else if(state.phase==='countdown')clock.textContent=left>0?fa(Math.ceil(left/1000)):'شروع!';
- else if(state.phase==='round_active'){clock.textContent=left>0?fa(left/1000)+' ثانیه':'پایان زمان دور';const progress=$('kq-progress');if(progress)progress.value=left;root.querySelectorAll('[data-answer]').forEach(b=>b.disabled=!!state.answer || !!pending || !state.worker_available || left<=0);}
+ else if(state.phase==='round_active'){clock.textContent=left>0?fa(left/1000)+' ثانیه':'پایان زمان دور';const progress=$('kq-progress');if(progress)progress.value=left;root.querySelectorAll('[data-answer]').forEach(b=>b.disabled=!connected || !!failures || !!state.answer || !!pending || !state.worker_available || left<=0);}
  else{clock.textContent='پایان زمان دور';const next=$('kq-next');if(next)next.textContent=left>0?'دور بعد تا '+fa(Math.ceil(left/1000))+' ثانیه دیگه':'در انتظار شروع دور بعد…';}}
  requestAnimationFrame(animate);
 }
@@ -356,13 +353,14 @@ $('kq-players').addEventListener('click',e=>{if(e.target===$('kq-players')){cons
 document.addEventListener('keydown',e=>{if(!root.isConnected || e.repeat || e.ctrlKey || e.altKey || e.metaKey || $('kq-players').open || ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName) || e.target.isContentEditable || page!=='game')return;if(e.code==='Space' || e.code==='ArrowDown'){e.preventDefault();choose(e.code==='Space'?'fly':'skip');}});
 window.addEventListener('beforeunload',e=>{if(page==='game' && state?.role==='participant' && ['round_active','round_feedback'].includes(state.phase)){e.preventDefault();e.returnValue='';}});
 window.addEventListener('online',()=>{failures=0;schedule(0);});
-window.addEventListener('storage',e=>{if(profile && e.key===pendingKey()){syncPending();render(true);schedule(0);}});
+$('kq-reconnect').addEventListener('click',()=>schedule(0));
+window.addEventListener('offline',()=>{connected=false;$('kq-reconnect').hidden=false;$('kq-connection').hidden=false;$('kq-connection').textContent='مسابقهٔ چندنفره به اینترنت نیاز دارد؛ پاسخ آفلاین ذخیره یا ارسال نمی‌شود.';});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});
 async function bootstrap(){
  const begin=async()=>{let nonce=document.querySelector('meta[name="kq-bootstrap"]').content;
  try{return await api('bootstrap',{}, {'X-KQ-Boot':nonce});}catch(e){if(e.code!=='csrf')throw e;const response=await fetch(base+'/',{credentials:'same-origin',cache:'no-store'});const html=new DOMParser().parseFromString(await response.text(),'text/html');nonce=html.querySelector('meta[name="kq-bootstrap"]').content;return api('bootstrap',{}, {'X-KQ-Boot':nonce});}};
  try{
-  const data=navigator.locks?await navigator.locks.request('kq-bootstrap',begin):await begin();csrf=data.csrf;profile=data.profile;lastProfile=Date.now();booted=true;acceptState(data.state);
+  const data=navigator.locks?await navigator.locks.request('kq-bootstrap',begin):await begin();csrf=data.csrf;profile=data.profile;connected=true;try{localStorage.removeItem('kq-answer:'+profile.id);}catch{}lastProfile=Date.now();booted=true;acceptState(data.state);
   if(invitation){page='invite';await renderInvitation();}
   else{page=state.engagement?'game':'home';
    if(!state.engagement && state.last_match_id){let previous=null;try{previous=Number(sessionStorage.getItem('kq-last-match'));}catch{}if(previous===state.last_match_id){requestedMatch=previous;page='game';}}

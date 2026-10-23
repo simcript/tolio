@@ -9,12 +9,16 @@ use Pano\Kernel\BaseView;
 use Src\Modules\Kalaqpar\Commands\ManageCommand;
 use Src\Modules\Kalaqpar\Handlers\ApiHandler;
 use Src\Modules\Kalaqpar\Handlers\DefaultHandler;
+use Src\Modules\Kalaqpar\Handlers\PwaHandler;
 
 final readonly class KalaqparModule extends BaseModule
 {
     public function setup(): void
     {
         $this->router->get('/', DefaultHandler::class, 'home');
+        $this->router->get('/manifest.webmanifest', PwaHandler::class, 'manifest');
+        $this->router->get('/sw.js', PwaHandler::class, 'worker');
+        $this->router->get('/offline', PwaHandler::class, 'offline');
         $this->router->get('/join/[token]', DefaultHandler::class, 'invitation');
         $this->router->get('/r/[token]', DefaultHandler::class, 'invitation');
         $this->router->get('/assets/[file*]', DefaultHandler::class, 'asset');

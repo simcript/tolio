@@ -98,7 +98,7 @@ The following names identify the generated designs. Separate files may not exist
 - Do not place 30 names at the top of the game. Show the player's own score/rank, a top-three summary, and an “All players — N” button.
 - Use a purple «پر!» button and a yellow «رد کن» button, both large and touch-friendly. “Skip” is not a small link or a next-stage button.
 - Upon selection, lock both buttons and show a submitting state. After acknowledgement, show only “Answer recorded.” Hide correctness until the round ends.
-- On network failure, retry the same selection and `request_id`. Do not permit a contradictory choice while acceptance is uncertain. Refresh must restore server state.
+- On network failure, do not queue or replay the selection. Keep an in-flight choice uncertain until fresh authoritative state resolves acceptance; refresh restores server state. Server-side request idempotency remains in place.
 - Design loading, empty, pending, offline, reconnecting, late-answer, full/closed room, invalid invitation, host-change, and unavailable-worker states.
 - Animate the countdown smoothly, but the browser timer is not authoritative. Do not publish the current round's score/rank changes before settlement.
 - Support touch, mouse, and keyboard: Space for Fly and ArrowDown for Skip. Ignore game shortcuts when focus is in input/textarea/contenteditable, and ignore key repeat. Touch and click must not submit twice.
@@ -432,3 +432,72 @@ KQ_DATABASE=/tmp/kalaqpar-invitations/game.sqlite KQ_PUBLIC_BASE_URL=http://127.
 
 
 Files changed by this invitation update (relative to the module unless stated otherwise): `KalaqparModule.php`; `Database/{Migrator.php,schema.sql,invitations.sql}`; `Services/{Invitation.php,PublicUrl.php,Engine.php,State.php,Identity.php}`; `Http/Request.php`; `Handlers/{ApiHandler.php,DefaultHandler.php}`; `Files/config.php`; `Assets/{app.js,style.css}`; `Views/{home.php,layout.php}`; `Deployment/nginx.conf`; both READMEs and `OPERATIONS.md`; plus the one host integration `src/Foundation/DefaultFoundation.php`. Preexisting shared-host and unrelated work was retained.
+
+
+## Installable PWA (October 23, 2026)
+
+The native Persian RTL game now has an installable standalone shell. Multiplayer requires the network. Installation does not guarantee background execution, reduce heartbeat load, change request frequencies, or replace `kalaqpar:worker` when worker mode is selected. Mobile browsers may suspend hidden tabs or installed windows; existing presence, server deadlines, outage handling and scoring still apply. There is no Background Sync, offline submission queue, additional heartbeat, or additional game polling loop.
+
+### Deployment and routes
+
+Use the existing `KQ_PUBLIC_BASE_URL` (or `APP_URL`) as the absolute **application root**, without `/kalaqpar`. For example, an application root with path `/play` produces all of these paths:
+
+| Public resource | Path | Response policy |
+| --- | --- | --- |
+| Launch page / manifest id, start_url and scope | `/play/kalaqpar/` | HTML `no-store`; invitation-independent |
+| Manifest | `/play/kalaqpar/manifest.webmanifest` | `application/manifest+json; charset=utf-8`; `no-cache, max-age=0, must-revalidate` |
+| Worker | `/play/kalaqpar/sw.js` | `application/javascript; charset=utf-8`; same revalidation policy; `Service-Worker-Allowed: /play/kalaqpar/` |
+| Generic offline document | `/play/kalaqpar/offline` | Public, no identity/bootstrap/CSRF data; revalidated HTTP response |
+| Public versioned assets | `/play/kalaqpar/assets/<allowlisted file>?v=<SHA-256>` | Correct CSS/JS/font/PNG/SVG MIME; `nosniff`; public one-year immutable HTTP caching |
+
+HTTPS is required in production. PWA endpoints reject a configured HTTP origin except `localhost`, `127.0.0.1` and `[::1]`; registration also requires the browser's secure context. Configure HTTPS redirects/certificates at the existing web server, preserving trusted HTTPS handling for secure cookies. The PWA does not change authentication or proxy trust.
+
+Upload the module files and both Apache rewrite files as one consistent release, preferably using an atomic directory/symlink deployment. No migration, new command, Composer package, CDN, framework or build step is needed. Preserve the final slash on the launch page: `DefaultHandler::home()` redirects a slashless launch URL to the scoped URL, and `public/.htaccess` plus `public/dev.htaccess` now exempt `/kalaqpar/` (including a deployment prefix) from their generic slash removal. Apply this same exception to any custom upstream rewrite rules; avoid redirect loops. Continue routing all module resources through Pano and the existing mount-aware Request integration. Do not configure a worker at the domain root.
+
+Do not let a CDN/proxy cache personalized HTML, any `/api/` route, or override manifest/worker revalidation headers. Preserve query strings in static asset cache keys and the MIME/header policies above. CSP retains its restrictions, with explicit same-origin `worker-src` and `manifest-src`; no inline scripts, unsafe directives or external origins were added. Check these headers on the deployed hostname, not just localhost.
+
+### Installation and invitations
+
+On browsers that emit `beforeinstallprompt`, the small Persian install action opens the browser's native prompt. Other installation UI/eligibility is browser-dependent; the browser menu may offer installation. On iPhone/iPad the action explains Safari's Share → Add to Home Screen flow and suggests opening Safari if the current browser lacks that option. Installation suggestions disappear in standalone mode. The existing crow artwork supplies real 192×192 and 512×512 PNGs, an opaque 512×512 maskable icon, and a 180×180 apple-touch icon. The maskable artwork is scaled to 72% of the original 240-unit canvas: its outer circle has radius 77.76 units, inside the required 96-unit (40%) central safe circle. Native scrolling, focus styles, minimum touch targets, viewport-fit and safe-area padding are preserved.
+
+Installing from `/join/<code>` or the legacy `/r/<token>` still uses the fixed module root as `id` and `start_url`. Neither installation nor launch sends Join. Invitations remain previews; membership still requires the existing explicit CSRF-protected Join action. Launch may show an already existing engagement through the original bootstrap flow.
+
+### Exact cache and offline policy
+
+`Services/Pwa.php` is the public allowlist: Bootstrap RTL CSS, game CSS, `app.js`, `pwa.js`, Vazirmatn WOFF2, hero SVG, the two ordinary icons, maskable icon and apple-touch icon. Each URL carries its file's SHA-256. Installation fetches these ten resources and one generic offline document without credentials, rejecting redirects, HTTP failures and responses lacking the handler's public-resource marker. Cache Storage contains only those resources. It never stores live navigation HTML, bootstrap tokens, identities, CSRF, match state or private responses.
+
+Cache names are `kalaqpar-pwa-<first 16 hex characters of SHA-256(module path)>-<release SHA-256>`. The release hash covers the public asset URLs, worker source, offline view and PWA PHP sources. The mount-specific prefix isolates multiple installations on the same origin. Activation removes only older caches with that exact prefix. Public resources use cache-first for exact allowlisted URLs, with network fallback on a miss and no runtime cache writes. Unversioned resources are not added to Cache Storage. Item SVGs retain their existing immutable HTTP caching and are deliberately not precached by the worker.
+
+Every `/api/*` URL bypasses the worker's cache, regardless of method or query: `bootstrap`, `heartbeat`, `state`, `answer`, `queue`, `create`, `join`, `leave`, `start`, `rematch`, `spectate`, `resume`, `rename`, `preview`, `profile`, `leaderboard` and `health`. Non-GET requests, the manifest, unknown assets/URLs and unrelated Pano modules also bypass Cache Storage. Nothing is queued or replayed by the worker.
+
+Root and invitation navigation is network-first without storing the response. Only a thrown network error selects the generic Persian offline document; actual 4xx/5xx responses pass through. The document explains that multiplayer needs internet and offers Try again (the current navigation URL) and Home. In a disconnected running game, failures of real requests as well as browser offline events disable answering and show Persian connection guidance. The existing anchored timer display is suppressed while disconnected; no local replacement determines rounds or scores. Try again, online and visibility events use the original scheduler and authoritative state flow, without a second loop. `navigator.onLine` is not used as proof of connectivity.
+
+The old browser answer persistence/retry path has been removed specifically to prevent offline replay. A selection is sent once, kept only in memory while uncertain, and reconciled from server state. No automatic/manual pending-answer resubmission runs on reconnection. Old stored pending data for the current guest is discarded at bootstrap. Server idempotency, validation, adjudication, scoring, timing samples and acknowledgement-version guards remain intact.
+
+### Updates and clearing only this installation
+
+A waiting release exposes a Persian update action. While the current tab is engaged, it asks the user to finish and exit first. Once locally idle, confirmation explains that **every** Kalaqpar tab and installed window must finish its match and close before reopening. Updates deliberately never call `skipWaiting`, `clients.claim` or reload on `controllerchange`. The browser's normal waiting lifecycle, including other controlled tabs and suspended windows, gates activation; no tab can override another match by approving an immediate takeover. Updates may therefore remain pending until all such windows close. The prompt is guidance for a deliberate close/reopen update, not a force-update button.
+
+Live HTML stays network-only. Exact asset hashes, immutable response URLs and the worker's per-release allowlist prevent silently substituting newer scripts/styles into older HTML. If an old hashed asset or offline document is absent after deployment, the handler returns 409 instead of returning incompatible new bytes. An old controlled tab can continue using its cached release assets. If a file was never downloaded or browser storage was evicted, closing all game windows and reopening online is required. Avoid partial deployment; when intentionally replacing the bundled font, update its SHA-256 query in `style.css` too.
+
+To clear this PWA without deleting player identity or other modules, first finish games in all tabs/windows. In the last game tab's developer console run the following maintenance snippet, then close that tab and reopen online. It unregisters only this exact scope and deletes only its computed cache prefix; do not use origin-wide “clear site data”, which also removes guest cookies.
+
+```js
+(async () => {
+  const manifest = document.querySelector('link[rel="manifest"]');
+  const scope = new URL('./', manifest.href);
+  const base = scope.pathname.slice(0, -1);
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base));
+  const hash = [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const prefix = 'kalaqpar-pwa-' + hash.slice(0, 16) + '-';
+  const registration = await navigator.serviceWorker.getRegistration(scope.href);
+  if (registration?.scope === scope.href) await registration.unregister();
+  for (const key of await caches.keys()) if (key.startsWith(prefix)) await caches.delete(key);
+})();
+```
+
+Alternatively, inspect Application → Cache Storage and delete only names with the same mount-specific prefix, and unregister only the exact module worker scope. Existing controlled windows keep their worker until closed.
+
+### Verification boundary
+
+PHP and JavaScript syntax checks, PNG dimensions, and direct localhost Pano HTTP verification are recorded with the implementation report. HTTP checks under `/play/kalaqpar/` validate route/base-path generation, MIME/cache/security headers, public resources, canonical redirect and stale-version rejection; they do not exercise real service-worker lifecycle or installation. Android installation, iOS/Safari installation, desktop native install prompts, offline Cache Storage behavior, multi-tab/suspended-window updates, safe-area rendering and real Apache/Nginx subdirectory deployment still need interactive device/browser verification. No tests, fixtures, test scripts, dependencies or CI were added or modified.
