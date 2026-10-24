@@ -15,6 +15,11 @@ final class ManageCommand extends BaseCommand
         try {
             $f = new Factory();
             $command = $this->request->getSegments()[0];
+            if ($command === 'kalaqpar:mail') {
+                $sent = (new \Src\Modules\Kalaqpar\Services\Recovery($f->db, $f->settings))->dispatch();
+                $this->info('Recovery dispatcher completed; SMTP accepted messages: ' . $sent);
+                return ResultCodeEnum::OK;
+            }
             if ($command === 'kalaqpar:stop') {
                 if ($f->settings['progression'] === 'shared') {
                     $this->info('Shared mode has no daemon to stop. Use KQ_MAINTENANCE=true to pause mutations.');

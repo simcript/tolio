@@ -9,6 +9,8 @@ final class Connection
 {
     public readonly PDO $pdo;
     private bool $writing = false;
+    private ?\Closure $writeAuthorization = null;
+    public function authorizeWrites(\Closure $check): void { $this->writeAuthorization = $check; }
 
     public function __construct(public readonly string $path)
     {
@@ -53,6 +55,7 @@ final class Connection
         }
         $this->writing = true;
         try {
+            if ($this->writeAuthorization) { ($this->writeAuthorization)(); }
             $value = $work();
             $this->pdo->exec('COMMIT');
             return $value;

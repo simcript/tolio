@@ -26,6 +26,8 @@ self.addEventListener('fetch', event => {
  const request = event.request;
  const url = new URL(request.url);
  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+ // Authentication and token-bearing recovery URLs always use the network.
+ if (/^\/(?:account|register|login|logout|forgot-password|reset-password)(?:\/|$)/.test(url.pathname.slice(CONFIG.base.length)) && url.pathname.startsWith(CONFIG.base + '/')) return;
  // Exact allowlist only. Every /api/* request (including GET), unversioned
  // asset, item image, manifest and unrelated Pano path bypasses Cache Storage.
  if (allowed.has(url.href)) {

@@ -2,6 +2,8 @@
 
 The owner requested this deployment mode on 2026-10-22. `KQ_PROGRESSION=shared` is the default. It replaces the original persistent-worker requirement **for this mode**. Ordinary authenticated, CSRF-protected POST requests run a short pass through the existing server engine. The browser polls via POST heartbeat and receives its authorized state in that response. No recurring cron, long-running PHP request, background process, shell execution from PHP, or external service is needed during gameplay.
 
+Optional email/password recovery adds an independent once-per-minute `php pano kalaqpar kalaqpar:mail` task and outbound encrypted SMTP. Gameplay itself keeps the existing progression model. See the synchronized account sections in [README.md](README.md) and [README.fa.md](README.fa.md) for migration 6, SMTP secrets, availability, log exclusions and rollout. If recurring CLI or outbound SMTP is unavailable, keep `KQ_RECOVERY_ENABLED=false`; optional registration/login and guest play remain available.
+
 ## Hosting requirements
 
 - PHP 8.2+ with PDO SQLite, JSON and Unicode PCRE, HTTPS, and the existing Pano front-controller rewrite support. Enable `pdo_sqlite` for both the website and the PHP binary used for installation.

@@ -12,6 +12,12 @@ final class Settings
         }
         $values['maintenance'] = filter_var($values['maintenance'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         if ($values['maintenance'] === null) { throw new \RuntimeException('KQ_MAINTENANCE must be true or false.'); }
+        $values['production'] = filter_var($values['production'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $values['recovery_enabled'] = filter_var($values['recovery_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ($values['production']) {
+            if (parse_url(PublicUrl::base($values), PHP_URL_SCHEME) !== 'https') { throw new \RuntimeException('Production requires an HTTPS public URL.'); }
+            $values['secure_cookie'] = true;
+        }
         return $values;
     }
     public static function now(): int { return (int) floor(microtime(true) * 1000); }

@@ -235,3 +235,10 @@ See the current observations in [SHARED_HOSTING.md](SHARED_HOSTING.md). Earlier 
 ## Six-digit invitation upgrade (2026-10-22)
 
 Current English/Persian contract, migration commands, permanent code reservations, trusted URLs, legacy aliases, changed files and actual permitted manual verification are synchronized in [README.md, section 16](README.md#16-six-digit-invitations-and-links-owner-update-2026-10-22) and [README.fa.md](README.fa.md). Apply migration 4 during maintenance after backup; no invitation-upgrade reseed is required. New shared links always use `<trusted public application root>/kalaqpar/join/<six ASCII digits>`. Code entry, URL entry, old links, preview and POST Join share the same invitation service and server budgets. The new host integration is only the Pano request subclass selected by `DefaultFoundation::request()` for configured Kalaqpar subdirectory routing; no vendor or public entry point changes.
+
+
+## Optional accounts and recovery operations (2026-10-24)
+
+See [the English account guide](README.md#optional-emailpassword-accounts-and-recovery-2026-10-24) and [Persian guide](README.fa.md) for migration 6, identity rotation/retirement, active-match policy and SMTP configuration. The original guest bootstrap remains; converted accounts use random credentials in the same token table, without host PHP sessions. Account routes are GET/POST register/login/forgot-password/reset-password, GET account and POST logout beneath the module path.
+
+The native `php pano kalaqpar kalaqpar:mail` command is a separate bounded dispatcher, scheduled once per minute even in shared mode; it never progresses games. Keep recovery disabled until private SMTP configuration, cron and URL-log exclusions are in place. No real recovery email was sent during implementation, and production SMTP/hosting/browser acceptance remains unverified. Do not log request bodies or reset query strings in web/proxy/CDN/APM diagnostics. The nginx template excludes reset access logging; adapt the exact prefix to the deployment. Keep permanent retired-token hashes in backups. Existing game progression settings and unrelated working-tree changes are preserved.

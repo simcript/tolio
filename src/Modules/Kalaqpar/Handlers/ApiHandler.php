@@ -47,6 +47,7 @@ final class ApiHandler extends BaseHandler
             } elseif (!$anonymous) {
                 $u = $identity->resolve();
                 if ($post && !hash_equals($u['csrf'], $this->request->getHeaders()['x-kq-csrf'] ?? '')) { throw new GameError('csrf', 'صفحه را تازه کن.', 403); }
+                if ($post) { $factory->db->authorizeWrites(fn () => $identity->resolve()); }
             }
             if ($scope !== '') { $identity->limit($u ? 'u:' . $u['id'] : hash('sha256', $_SERVER['REMOTE_ADDR'] ?? 'local'), $scope, $limit); }
             if ($invitationAccess) { $identity->limitInvitation($u); }

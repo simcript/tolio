@@ -12,7 +12,8 @@
   ],
   "require": {
     "php": ">=8.2",
-    "pano-php/framework": "^1.7"
+    "pano-php/framework": "^1.7",
+    "phpmailer/phpmailer": "^7.1"
   },
   "autoload": {
     "psr-4": {

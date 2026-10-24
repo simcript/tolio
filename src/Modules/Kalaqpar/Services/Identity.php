@@ -10,7 +10,7 @@ final class Identity
     public static function cookie(string $name, string $value, int $expires): void
     {
         setcookie($name, $value, ['expires' => $expires, 'path' => PublicUrl::path(),
-            'secure' => (bool) (Settings::values()['secure_cookie'] ?? false) || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'secure' => parse_url(PublicUrl::base(), PHP_URL_SCHEME) === 'https' || (bool) (Settings::values()['secure_cookie'] ?? false) || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
             'httponly' => true, 'samesite' => 'Lax']);
     }
 
@@ -41,6 +41,12 @@ final class Identity
         } finally { flock($f, LOCK_UN); fclose($f); }
     }
 
+    public function formCsrf(string $nonce): string
+    {
+        $raw = is_string($_COOKIE['kq_identity'] ?? null) ? $_COOKIE['kq_identity'] : '';
+        return hash_hmac('sha256', 'account:' . $nonce . ':' . $raw, $this->secret());
+    }
+
     public function bootstrap(string $nonce): array
     {
         try { $user = $this->resolve(); }
@@ -49,8 +55,17 @@ final class Identity
             $raw = hash_hmac('sha256', $nonce, $this->secret());
             $hash = hash('sha256', $raw);
             $user = $this->db->atomic(function () use ($hash) {
-                $existing = $this->db->one('SELECT u.* FROM kalaqpar_tokens t JOIN kalaqpar_users u ON u.id=t.user_id WHERE t.hash=? AND t.expires_at>?', [$hash, Settings::now()]);
-                if ($existing) { return $existing; }
+                if ($this->db->one('SELECT 1 FROM kalaqpar_retired_tokens WHERE hash=?', [$hash])) {
+                    self::cookie('kq_boot', '', time() - 3600);
+                    throw new GameError('csrf', 'هویت تغییر کرده؛ صفحه را تازه کن.', 403);
+                }
+                $existing = $this->db->one('SELECT u.* FROM kalaqpar_tokens t JOIN kalaqpar_users u ON u.id=t.user_id WHERE t.hash=? AND t.expires_at>? AND NOT EXISTS (SELECT 1 FROM kalaqpar_email_accounts a WHERE a.user_id=u.id)', [$hash, Settings::now()]);
+                if ($existing) {
+                    if ((new Accounts($this->db, $this->settings))->registered($existing['id'])) { throw new GameError('csrf', 'صفحه را تازه کن.', 403); }
+                    return $existing;
+                }
+                $this->db->run('DELETE FROM kalaqpar_tokens WHERE hash=? AND expires_at<=?', [$hash, Settings::now()]);
+                if ($this->db->one('SELECT 1 FROM kalaqpar_tokens WHERE hash=?', [$hash])) { throw new GameError('csrf', 'صفحه را تازه کن.', 403); }
                 $now = Settings::now();
                 $this->db->run('INSERT INTO kalaqpar_users(public_id,name,avatar,created_at,seen_at) VALUES (?,?,?,?,?)', [bin2hex(random_bytes(8)), 'مهمان ' . random_int(1000, 9999), random_int(0, 5), $now, $now]);
                 $id = $this->db->id();
@@ -81,7 +96,8 @@ final class Identity
     public function limit(string $subject, string $scope, int $count, int $seconds = 60): void
     {
         $hits = $this->db->atomic(function () use ($subject, $scope, $seconds) {
-            $bucket = (int) floor(time() / $seconds);
+            // Keep minute-based bucket keys compatible with the existing engine cleanup.
+            $bucket = intdiv(intdiv(time(), $seconds) * $seconds, 60);
             $this->db->run('INSERT INTO kalaqpar_limits VALUES (?,?,?,1) ON CONFLICT(subject,scope,bucket) DO UPDATE SET hits=hits+1', [$subject, $scope, $bucket]);
             return $this->db->one('SELECT hits FROM kalaqpar_limits WHERE subject=? AND scope=? AND bucket=?', [$subject, $scope, $bucket])['hits'];
         });

@@ -7,6 +7,7 @@ final class Pwa
     public const ASSETS = [
         'bootstrap.rtl.min.css' => 'text/css', 'style.css' => 'text/css',
         'app.js' => 'application/javascript', 'pwa.js' => 'application/javascript',
+        'account.js' => 'application/javascript',
         'Vazirmatn-Regular.woff2' => 'font/woff2', 'hero.svg' => 'image/svg+xml',
         'icon-192.png' => 'image/png', 'icon-512.png' => 'image/png',
         'icon-maskable-512.png' => 'image/png', 'apple-touch-icon.png' => 'image/png',

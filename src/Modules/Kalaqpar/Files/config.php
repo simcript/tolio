@@ -23,4 +23,13 @@ return [
     'health_ms' => 2000,
     'room_ttl_ms' => 1800000,
     'identity_days' => 180,
+    'production' => env('APP_ENV', 'local') === 'production',
+    'recovery_enabled' => env('KQ_RECOVERY_ENABLED', false),
+    'smtp_host' => env('KQ_SMTP_HOST', 'smtp.wavechannel.ir'),
+    'smtp_port' => env('KQ_SMTP_PORT', 465),
+    'smtp_encryption' => env('KQ_SMTP_ENCRYPTION', 'smtps'),
+    'smtp_username' => env('KQ_SMTP_USERNAME', 'kalaqpar@tolio.ir'),
+    'smtp_password' => env('KQ_SMTP_PASSWORD', ''),
+    'mail_from' => env('KQ_MAIL_FROM', 'kalaqpar@tolio.ir'),
+    'mail_from_name' => env('KQ_MAIL_FROM_NAME', 'کلاغ‌پر'),
 ];

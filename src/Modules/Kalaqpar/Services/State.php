@@ -29,7 +29,7 @@ final class State
         $history = $this->db->all("SELECT m.id match_id,r.name,r.mode,m.phase,m.total,m.ended_at,p.score,x.rank,x.won FROM kalaqpar_match_players p JOIN kalaqpar_matches m ON m.id=p.match_id JOIN kalaqpar_rooms r ON r.id=m.room_id LEFT JOIN kalaqpar_results x ON x.match_id=m.id AND x.user_id=p.user_id WHERE p.user_id=? AND m.phase IN ('finished','technical_cancelled') ORDER BY m.id DESC LIMIT 10 OFFSET " . (($page - 1) * 10), [$id]);
         $count = $this->db->one("SELECT COUNT(*) n FROM kalaqpar_match_players p JOIN kalaqpar_matches m ON m.id=p.match_id WHERE p.user_id=? AND m.phase IN ('finished','technical_cancelled')", [$id])['n'];
         $rank = $this->leaderboard($id, 'weekly', 1, 1)['me']['rank'] ?? null;
-        return $this->user($u) + ['created_at' => $u['created_at'], 'total_score' => $u['total_score'], 'weekly_score' => $weekly, 'weekly_rank' => $rank,
+        return $this->user($u) + ['registered' => (new Accounts($this->db, $this->settings))->registered($id), 'created_at' => $u['created_at'], 'total_score' => $u['total_score'], 'weekly_score' => $weekly, 'weekly_rank' => $rank,
             'accuracy' => $stats['settled'] ? round(100 * $stats['correct'] / $stats['settled'], 1) : null,
             'completed' => $results['completed'], 'wins' => $results['wins'], 'best' => $results['best'],
             'history' => $history, 'history_page' => $page, 'history_pages' => (int) ceil($count / 10)];

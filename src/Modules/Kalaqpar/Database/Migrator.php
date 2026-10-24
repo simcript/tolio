@@ -35,6 +35,23 @@ final class Migrator
                 $db->pdo->exec(file_get_contents(__DIR__ . '/invitations.sql'));
                 $db->run('INSERT INTO kalaqpar_migrations VALUES (4, ?)', [(int) floor(microtime(true) * 1000)]);
             }
+            if (!$db->one('SELECT version FROM kalaqpar_migrations WHERE version=6')) {
+                $legacy = $db->one("SELECT 1 FROM sqlite_master WHERE type='table' AND name='kalaqpar_accounts'");
+                if ($legacy) {
+                    $columns = array_column($db->all('PRAGMA table_info(kalaqpar_accounts)'), 'name');
+                    if (array_diff(['user_id', 'phone', 'password_hash', 'registered_at'], $columns)) {
+                        throw new \RuntimeException('Unrecognized existing account schema; migration rolled back. Review legacy compatibility first.');
+                    }
+                }
+                $db->pdo->exec(file_get_contents(__DIR__ . '/accounts.sql'));
+                if ($legacy) {
+                    // Older phone releases may have retained deterministic guest credentials.
+                    // Revoke sessions, preserving all legacy credentials and game records.
+                    $db->run('INSERT OR IGNORE INTO kalaqpar_retired_tokens(hash,retired_at) SELECT hash,? FROM kalaqpar_tokens WHERE user_id IN (SELECT user_id FROM kalaqpar_accounts)', [(int) floor(microtime(true) * 1000)]);
+                    $db->run('DELETE FROM kalaqpar_tokens WHERE user_id IN (SELECT user_id FROM kalaqpar_accounts)');
+                }
+                $db->run('INSERT INTO kalaqpar_migrations VALUES (6, ?)', [(int) floor(microtime(true) * 1000)]);
+            }
         });
     }
 }

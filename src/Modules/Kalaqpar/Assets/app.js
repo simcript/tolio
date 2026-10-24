@@ -15,7 +15,7 @@ let csrf = '', profile = null, state = null, page = 'home', viewEpoch = 0, finge
 let invitation = root.dataset.invitation || '', preview = null, requestedMatch = null, offset = 0, samples = [], pollTimer = null;
 let codeDraft = '', connected = true;
 let polling = false, activePoll = null, failures = 0, booted = false, pending = null, pendingSending = false, answerError = '', roundSeen = 0;
-let leaders = null, leaderPeriod = 'weekly', leaderPage = 1, historyPage = 1, colorDraft = 0, previousHost = null, previousRoom = null, navigating = false;
+let leaders = null, leaderPeriod = 'weekly', leaderPage = 1, previousHost = null, previousRoom = null, navigating = false;
 const message = text => { $('kq-message').textContent = text; $('kq-message').hidden = !text; };
 function button(text, action, cls = '', disabled = false) {
  const b = node('button', 'kq-button ' + cls, text); b.type = 'button'; b.disabled = disabled;
@@ -26,7 +26,11 @@ function link(text, action) { return button(text, action, 'kq-link'); }
 function avatar(name, color, big = false) { const a = node('span', 'kq-avatar' + (big ? ' kq-big' : ''), [...(name || 'م')][0]); a.dataset.color = color ?? 2; a.setAttribute('aria-hidden','true'); return a; }
 function hero(title, subtitle = '', crow = true) { const box = node('div','kq-hero'); if (subtitle) box.append(node('div','kq-eyebrow',subtitle)); if (crow) { const img = node('img'); img.src=root.dataset.hero; img.alt='تصویر کلاغ'; box.append(img); } box.append(node('h2','',title)); return box; }
 function stats(entries) { return append(node('div','kq-stats'), entries.map(([value,label]) => append(node('div','kq-stat'),node('strong','',fa(value)),node('small','',label)))); }
-function heading(title, subtitle='') { $('kq-title').textContent=title; $('kq-subtitle').textContent=subtitle; $('kq-back').hidden=page==='home'; $('kq-nav').hidden=page==='game' || page==='invite'; root.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page)); }
+function accountControls() {
+ if (!profile) return;
+ $('kq-account').textContent='پروفایل و حساب';
+}
+function heading(title, subtitle='') { accountControls(); $('kq-title').textContent=title; $('kq-subtitle').textContent=subtitle; $('kq-back').hidden=page==='home'; $('kq-nav').hidden=page==='game' || page==='invite'; root.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page)); }
 function rows(players, lobby=false) {
  return players.map(u => {
   const r = node('div','kq-row' + (u.me ? ' kq-mine':''));
@@ -82,13 +86,12 @@ function render(force=false) {
 }
 function renderHome() {
  heading('کلاغ‌پر',profile.name+' · ببین، تصمیم بگیر، امتیاز بگیر!');
- content.append(hero('با هم بیشتر خوش می‌گذره!','۲ تا ۳۰ نفر · بدون حذف'),stats([[profile.total_score,'امتیاز کل'],[profile.weekly_score,'امتیاز هفته'],[profile.weekly_rank,'رتبه هفتگی']]));
+ content.append(hero('با هم بیشتر خوش می‌گذره!',''),stats([[profile.total_score,'امتیاز کل'],[profile.weekly_score,'امتیاز هفته'],[profile.weekly_rank,'رتبه هفتگی']]));
  if (state.engagement) content.append(button('بازگشت به بازی و اتاق فعلی',async()=>{requestedMatch=null;await navigate('game');}));
  else if (state.last_match_id) content.append(link('دیدن نتیجه آخرین مسابقه',()=>openMatch(state.last_match_id)));
  content.append(button('بازی سریع',()=>mutation('queue',{},true),'',!state.worker_available || !!state.engagement),p('با بازیکن‌های آنلاین هم‌بازی شو'));
  content.append(button('بازی با دوستان',()=>navigate('create'),'kq-yellow',!!state.engagement),p('اتاق بساز و کد یا لینک دعوت رو بفرست'),codeForm());
- content.append(note('اشتباه کردی؟ بازی ادامه داره!','۱۵ دور بازی؛ بیشترین امتیاز برنده می‌شه. پاسخ اشتباه یا بی‌پاسخ: ۱−. پرواز درست: برای همه ۱+. رد کردن درست: فقط اولین نفر ۱+، بقیه صفر.','kq-white'));
- content.append(p('زمان دریافت پاسخ در سرور ملاکه؛ تأخیر شبکه و سرعت اینترنت ممکنه روی نتیجه اثر بذاره.'));
+ content.append(note('اشتباه کردی؟ بازی ادامه داره!','۳۰ دور بازی؛ بیشترین امتیاز برنده می‌شه. پاسخ اشتباه یا بی‌پاسخ: ۱−. پرواز درست: برای همه ۱+. رد کردن درست: فقط اولین نفر ۱+، بقیه صفر. ضمنا زمان دریافت پاسخ در سرور ملاکه؛ تأخیر شبکه و سرعت اینترنت ممکنه روی نتیجه اثر بذاره.','kq-white'));
 }
 function asciiDigits(value) {
  return value.replace(/[۰-۹٠-٩]/g,c=>String('۰۱۲۳۴۵۶۷۸۹'.includes(c)?'۰۱۲۳۴۵۶۷۸۹'.indexOf(c):'٠١٢٣٤٥٦٧٨٩'.indexOf(c)));
@@ -218,6 +221,8 @@ function renderResults() {
 }
 async function navigate(next) {
  if(navigating)return;
+ // Viewing the profile does not leave a match or switch identity.
+ if(next==='profile'){location.assign(base+'/account');return;}
  if(page==='game' && ['round_active','round_feedback'].includes(state?.phase) && state.role==='participant' && !state.departed){
   if(!confirm('امتیازدهی تا پایان مسابقه ادامه دارد. هر دور بی‌پاسخ ۱− دارد و نمی‌توانی همزمان وارد مسابقه دیگری شوی. از صفحه بازی خارج می‌شوی؟'))return;
   navigating=true;try{await api('leave',{});}finally{navigating=false;}
@@ -227,7 +232,6 @@ async function navigate(next) {
  if(next!=='game')requestedMatch=null;
  if(next==='create')return renderCreate();
  if(next==='invite')return renderInvitation();
- if(next==='profile')return loadProfile();
  if(next==='leaders')return loadLeaders();
  if(next==='home') { const epoch=viewEpoch;try{const data=await api('profile');if(epoch!==viewEpoch)return;profile=data.profile;lastProfile=Date.now();}catch(e){message(e.message);} }
  render(true);schedule(0);
@@ -260,21 +264,6 @@ async function renderInvitation() {
  }catch(e){if(epoch!==viewEpoch)return;content.replaceChildren(note('دعوت در دسترس نیست',e.message),button('بررسی دوباره',renderInvitation,'kq-white'),codeForm(),button('رفتن به خانه',()=>navigate('home')));}
 }
 function pager(current,pages,action) {const bar=node('div','kq-pagination');bar.append(button('›',()=>action(current-1),'',current<=1),node('span','',fa(current)+' / '+fa(Math.max(1,pages))),button('‹',()=>action(current+1),'',current>=pages));return bar;}
-async function loadProfile() {
- heading('پروفایل من','هویت مهمان، بدون دردسر ثبت‌نام');content.replaceChildren(card(p('در حال بارگیری پروفایل…')));const epoch=viewEpoch;
- try{const data=await api('profile?page='+historyPage);if(epoch!==viewEpoch || page!=='profile')return;profile=data.profile;colorDraft=profile.avatar;drawProfile();}catch(e){if(epoch===viewEpoch)content.replaceChildren(note('پروفایل بارگیری نشد',e.message),button('تلاش دوباره',loadProfile));}
-}
-function drawProfile() {
- content.replaceChildren(append(node('div','kq-profile-head'),avatar(profile.name,profile.avatar,true),node('h2','',profile.name),p('شناسه بازیکن: '+profile.id)));
- const form=node('form');const label=node('label','kq-field','نام نمایشی');label.htmlFor='kq-profile-name';const input=node('input');input.id='kq-profile-name';input.maxLength=30;input.required=true;input.value=profile.name;const colors=node('div','kq-colors');
- for(let i=0;i<6;i++){const b=avatar(profile.name,i);const choose=node('button','kq-avatar');choose.type='button';choose.dataset.color=i;choose.setAttribute('aria-label','رنگ آواتار '+fa(i+1));choose.setAttribute('aria-pressed',String(i===colorDraft));choose.addEventListener('click',()=>{colorDraft=i;colors.querySelectorAll('button').forEach(c=>c.setAttribute('aria-pressed',String(Number(c.dataset.color)===i)));});colors.append(choose);}
- const save=button('ذخیره نام و آواتار',async()=>{if(!form.reportValidity())return;const epoch=viewEpoch;const data=await api('rename',{name:input.value,avatar:colorDraft});profile=data.profile;if(page==='profile' && epoch===viewEpoch){message('پروفایل ذخیره شد.');drawProfile();}});form.append(label,input,colors,save);form.addEventListener('submit',e=>{e.preventDefault();save.click();});
- content.append(form,stats([[profile.total_score,'امتیاز کل'],[profile.weekly_score,'امتیاز هفته'],[profile.wins,'برد']]),stats([[profile.completed,'مسابقه کامل'],[profile.best,'بهترین امتیاز'],[profile.accuracy,'دقت ٪']]),node('div','kq-date','عضویت: '+new Date(profile.created_at).toLocaleDateString('fa-IR')),
- note('این هویت به مرورگر تو وصله','با پاک‌کردن کوکی‌ها یا تغییر مرورگر، دسترسی به این پروفایل از بین می‌رود.'),node('h2','','تاریخچه مسابقه‌ها'));
- if(!profile.history.length)content.append(node('div','kq-empty','هنوز مسابقه‌ای تمام نکرده‌ای.'));
- for(const m of profile.history){const row=card(node('h3','',m.name),p(m.phase==='technical_cancelled'?'لغو فنی · بدون ثبت برد':'رتبه '+fa(m.rank)+' · '+fa(m.total)+' دور'),node('strong','',fa(m.score)+' امتیاز'),node('small','',new Date(m.ended_at).toLocaleDateString('fa-IR')),link('دیدن نتیجه',()=>openMatch(m.match_id)));content.append(row);}
- if(profile.history_pages>1)content.append(pager(historyPage,profile.history_pages,async n=>{historyPage=n;await loadProfile();}));
-}
 async function loadLeaders() {
  heading('جدول رتبه‌بندی','هر دور، یه فرصت برای بالاتر رفتن');content.replaceChildren(card(p('در حال بارگیری رتبه‌بندی…')));const epoch=viewEpoch;
  try{const data=await api('leaderboard?period='+leaderPeriod+'&page='+leaderPage);if(epoch!==viewEpoch || page!=='leaders')return;leaders=data.leaderboard;lastLeaders=Date.now();drawLeaders();}catch(e){if(epoch===viewEpoch)content.replaceChildren(note('رتبه‌بندی بارگیری نشد',e.message),button('تلاش دوباره',loadLeaders));}
@@ -364,7 +353,10 @@ async function bootstrap(){
   if(invitation){page='invite';await renderInvitation();}
   else{page=state.engagement?'game':'home';
    if(!state.engagement && state.last_match_id){let previous=null;try{previous=Number(sessionStorage.getItem('kq-last-match'));}catch{}if(previous===state.last_match_id){requestedMatch=previous;page='game';}}
-   if(requestedMatch)await refresh(true);render(true);}
+   const entry=new URLSearchParams(location.search);
+   const match=entry.get('match');if(match && /^[1-9][0-9]{0,9}$/.test(match)){requestedMatch=Number(match);page='game';}
+   if(requestedMatch)await refresh(true);render(true);
+   if(entry.get('view')==='leaders'){page='leaders';viewEpoch++;await loadLeaders();}}
   schedule(0);
  }catch(e){heading('کلاغ‌پر','در حال آماده‌سازی سرویس');content.replaceChildren(note('اتصال به بازی برقرار نشد',e.message),button('تلاش دوباره',bootstrap));}
 }

@@ -3,9 +3,12 @@
     <header class="kq-header">
         <button id="kq-back" class="kq-icon" aria-label="بازگشت به خانه" hidden>›</button>
         <div><h1 id="kq-title">کلاغ‌پر</h1><p id="kq-subtitle">ببین، تصمیم بگیر، امتیاز بگیر!</p></div>
-        <span class="kq-brand" aria-hidden="true">↑</span>
+        <span class="kq-brand d-none" aria-hidden="true">↑</span>
     </header>
-    <div class="kq-pwa-actions">
+    <nav class="kq-pwa-actions d-none" aria-label="حساب اختیاری">
+        <a id="kq-account" class="kq-link" href="<?= htmlspecialchars($base_path, ENT_QUOTES, 'UTF-8') ?>/account">پروفایل و حساب</a>
+    </nav>
+    <div class="kq-pwa-actions d-none">
         <button id="kq-install" type="button" class="kq-link" hidden>نصب کلاغ‌پر</button>
         <button id="kq-update" type="button" class="kq-link" hidden>نسخهٔ تازه آماده است</button>
     </div>
