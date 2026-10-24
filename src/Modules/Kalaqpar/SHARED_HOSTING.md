@@ -34,7 +34,7 @@ Optional email/password recovery adds an independent once-per-minute `php pano k
    php pano kalaqpar kalaqpar:seed
    ```
 
-   The driver output must include `sqlite`. These commands are rerunnable; existing identities, scores and history are preserved. Migration 3 adds persistent cleanup timing. Seed provides 111 actual items and bundled illustrations, never demonstration players or results. Use the control panel's actual PHP executable when it differs from `php`.
+   The driver output must include `sqlite`. These commands are rerunnable; existing identities, scores and history are preserved. Migration 3 adds persistent cleanup timing. Seed provides 140 actual items and bundled illustrations, never demonstration players or results. See [CONTENT.md](CONTENT.md) for composition and upgrade checks. Existing disabled items stay disabled. Use the control panel's actual PHP executable when it differs from `php`.
 
 4. The PHP website user must own or have private write access to `/home/ACCOUNT/kalaqpar-private` including WAL/SHM, `worker.lock`, `identity.key` and `worker.log`. Directory 0700 and files 0600 work when the CLI and web run as the same hosting account. Do not use 0777. Configure invitation/API access-log exclusions where the host allows it; avoid logging invitation URLs in analytics, proxy or APM services.
 5. Open `https://YOUR-DOMAIN/kalaqpar/`. `/kalaqpar/api/health` should report `available:true` and `progression_mode:"shared"`. Health is a read-only readiness check in shared mode, not a claim that a daemon is running. Open two independent browsers, join the same private room and start through the host, or join the public queue.

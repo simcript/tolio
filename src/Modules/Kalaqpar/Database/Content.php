@@ -7,8 +7,9 @@ final class Content
     public static function catalogue(): array
     {
         $items = [];
-        $add = function (string $name, int $flies, string $body) use (&$items) {
+        $add = function (string $name, int $flies, string $body, bool $trailingNewline = false) use (&$items) {
             $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><circle cx="120" cy="120" r="108" fill="#f4f1e9"/><ellipse cx="120" cy="204" rx="75" ry="8" fill="#dedbd3"/><g stroke-linecap="round" stroke-linejoin="round">' . $body . '</g></svg>';
+            if ($trailingNewline) { $svg .= "\n"; }
             $items[] = ['name' => $name, 'can_fly' => $flies, 'asset' => substr(hash('sha256', $svg), 0, 24), 'svg' => $svg];
         };
         // Name, body, wing, bill length, neck length, distinguishing marks.
@@ -45,13 +46,7 @@ final class Content
             ['چکاوک','#c3a67d','#8d7553',17,0,'<path d="M132 65l11-25 15 25" fill="#a78962"/><path d="M132 121l-5 10m15-6l-4 11m-24 3l-2 9" stroke="#71573e" stroke-width="5"/>'],
         ];
         foreach ($birds as [$name,$color,$wing,$beak,$neck,$marks]) {
-            $headY = 85 - $neck;
-            $body = '<path d="M104 172l-5 26h-12m43-26l6 26h12" fill="none" stroke="#353545" stroke-width="5"/>';
-            $body .= '<path d="M83 155l-45 27 45 3 23-19" fill="' . $color . '"/><ellipse cx="119" cy="139" rx="48" ry="46" fill="' . $color . '"/>';
-            $body .= '<path d="M139 120Q119 ' . $headY . ' 148 ' . $headY . '" fill="none" stroke="' . $color . '" stroke-width="30"/><circle cx="149" cy="' . $headY . '" r="24" fill="' . $color . '"/>';
-            $body .= '<ellipse cx="103" cy="145" rx="28" ry="31" fill="' . $wing . '"/><path d="M164 ' . ($headY-3) . 'l' . $beak . ' 12-' . $beak . ' 8z" fill="#efc453"/>';
-            $body .= $marks . '<circle cx="154" cy="' . ($headY-4) . '" r="7" fill="white"/><circle cx="156" cy="' . ($headY-4) . '" r="3.6" fill="#252434"/>';
-            $add($name, 1, $body);
+            $add($name, 1, self::bird($color, $wing, $beak, $neck, $marks));
         }
         $add('خفاش',1,'<path d="M109 108Q49 56 25 98q24-1 14 34 22-13 26 20 20-13 41 18h28q22-31 42-18 4-33 26-20-10-35 13-34-24-42-84 10" fill="#46435c"/><ellipse cx="120" cy="139" rx="19" ry="38" fill="#292639"/><path d="M104 109l1-29 15 13 15-13 1 29" fill="#292639"/><circle cx="112" cy="110" r="4" fill="#fff"/><circle cx="128" cy="110" r="4" fill="#fff"/>');
         $insects = [
@@ -126,7 +121,51 @@ final class Content
             ['شمع','<rect x="88" y="98" width="64" height="103" rx="8" fill="#e2bb9d"/><path d="M120 98v-20" stroke="#63585a" stroke-width="5"/><path d="M120 38q-38 53 0 48 35-5 0-48" fill="#e7c45d"/><path d="M103 100v30m18-29v17" stroke="#f6dcc1" stroke-width="9"/>'],
         ];
         foreach ($objects as [$name,$body]) { $add($name,0,$body); }
+        $additionalBirds = [
+            ['قناری','#e9ce67','#c8af50',12,0,'<path d="M127 115q15 21 32 9" stroke="#f5e5a1" stroke-width="14"/><path d="M86 133l20 9m-23 5l20 9" stroke="#a48e43" stroke-width="4"/>'],
+            ['مینا','#987658','#4d4641',18,0,'<path d="M129 67q27-18 42 15l-6 28-32 4z" fill="#39383c"/><path d="M148 86l19 4" stroke="#e7bc4d" stroke-width="10"/><path d="M83 140l21 20" stroke="#f5efe0" stroke-width="11"/>'],
+            ['یاکریم','#c3b3a1','#a18f82',14,2,'<path d="M129 103q12 15 31 8" fill="none" stroke="#514c4d" stroke-width="6"/><path d="M62 169l-14 17 40-4" stroke="#eee5d7" stroke-width="7"/>'],
+            ['کرکس','#726454','#413c39',24,18,'<path d="M132 108q14 13 32 1" fill="none" stroke="#eee2c9" stroke-width="18"/><circle cx="149" cy="67" r="24" fill="#c1a194"/><path d="M165 64l21 7-10 15" fill="#6b6256"/>'],
+            ['حواصیل','#a5b3be','#697b8b',45,33,'<path d="M135 90q-24 18-9 35" fill="none" stroke="#e9e7df" stroke-width="15"/><path d="M125 41l-18 5m24-5l-17-8" stroke="#454b56" stroke-width="5"/><path d="M111 173l-4 38m28-38l7 38" stroke="#6a695c" stroke-width="5"/>'],
+            ['باکلان','#354b4c','#243d40',28,18,'<path d="M132 104q19 16 31-4" fill="none" stroke="#c7af79" stroke-width="10"/><path d="M173 65l18 8-8 10" fill="none" stroke="#c7b784" stroke-width="7"/><path d="M95 196h-18m64 1h18" stroke="#354b4c" stroke-width="8"/>'],
+            ['دم‌جنبانک','#e5e4dc','#48515b',16,0,'<path d="M80 159l-53 43 65-22" fill="#48515b"/><path d="M128 67q17-15 37 1" fill="none" stroke="#39434e" stroke-width="14"/><path d="M130 109q18 35 35 1" fill="#39434e"/><path d="M83 135l18 15m-19 1l16 13" stroke="#eeeae0" stroke-width="6"/>'],
+            ['کبک','#b3a18c','#8b8071',15,0,'<path d="M135 68q-29 38 6 52l22-7" fill="none" stroke="#3f4244" stroke-width="6"/><path d="M80 136l-1 24m12-19l-1 25m12-19v24" stroke="#463f3c" stroke-width="6"/><path d="M164 82l20 9-20 7" fill="#c77464"/>'],
+        ];
+        foreach ($additionalBirds as [$name,$color,$wing,$beak,$neck,$marks]) {
+            $add($name, 1, self::bird($color, $wing, $beak, $neck, $marks), true);
+        }
+        $add('ملخ', 1, '<path d="M82 144l-25-51 47 39m27 17l38-65 31 95m-87-23l-18 41-33 5m89-47l-8 40h32" fill="none" stroke="#6b8153" stroke-width="7"/><path d="M70 141l105-21-27 43-77-5z" fill="#a3af65"/><path d="M78 143l76 4-10 14-66-4z" fill="#c4ca8d" stroke="#7c915a" stroke-width="3"/><ellipse cx="173" cy="123" rx="21" ry="25" fill="#91a65f"/><path d="M177 101l-4-47m12 50l19-39" stroke="#64754b" stroke-width="4"/><circle cx="181" cy="117" r="6" fill="#343342"/>', true);
+        $add('خرمگس', 1, '<g fill="#d5e1df" stroke="#9cb7b6" stroke-width="3"><ellipse cx="84" cy="117" rx="28" ry="49" transform="rotate(-35 84 117)"/><ellipse cx="156" cy="117" rx="28" ry="49" transform="rotate(35 156 117)"/></g><path d="M103 139l-41 23-10 23m57-32l-27 42m55-56l41 23 10 23m-57-32l27 42" fill="none" stroke="#55534e" stroke-width="5"/><ellipse cx="120" cy="153" rx="31" ry="43" fill="#887d68"/><path d="M94 148h52m-51 17h50m-42 16h34" stroke="#b5a78a" stroke-width="7"/><ellipse cx="120" cy="118" rx="28" ry="25" fill="#605e54"/><ellipse cx="105" cy="102" rx="17" ry="21" fill="#8ca786"/><ellipse cx="135" cy="102" rx="17" ry="21" fill="#8ca786"/><path d="M93 102h24m6 0h24" stroke="#667e68" stroke-width="4"/>', true);
+        $additionalAnimals = [
+            ['الاغ','#a5a099','donkey'],['اسب آبی','#a59ca4','hippo'],['گورکن','#8d8980','badger'],
+            ['سمور آبی','#927258','otter'],['راکون','#a4a4a0','raccoon'],['کفتار','#b39c72','hyena'],
+            ['گوریل','#595d62','gorilla'],['آفتاب‌پرست','#82a56f','chameleon'],['مارمولک','#b4a478','lizard'],
+            ['عقرب','#b39567','scorpion'],['میگو','#dda48d','shrimp'],
+        ];
+        foreach ($additionalAnimals as [$name,$color,$type]) {
+            $add($name, 0, self::animal($color, $type), true);
+        }
+        $additionalObjects = [
+            ['انگور','<path d="M120 74l5-33m-5 26q-37-30-54-2 21 26 54 2" fill="#8ba477" stroke="#798f63" stroke-width="6"/><g fill="#9d89b5" stroke="#7f7196" stroke-width="3"><circle cx="89" cy="101" r="23"/><circle cx="132" cy="101" r="23"/><circle cx="153" cy="134" r="23"/><circle cx="110" cy="139" r="23"/><circle cx="69" cy="136" r="23"/><circle cx="89" cy="173" r="23"/><circle cx="132" cy="173" r="23"/><circle cx="111" cy="201" r="19"/></g>'],
+            ['خیار','<path d="M61 174Q86 57 166 55q35 8 7 47-42 48-61 89-38 37-51-17" fill="#7f9e70" stroke="#648459" stroke-width="5"/><path d="M78 170q37-79 82-98" fill="none" stroke="#a5bc88" stroke-width="8"/><path d="M98 174l3-5m22-28l3-5m12-25l3-4m-43 17l3-5m26-21l3-3" stroke="#52734d" stroke-width="5"/>'],
+            ['بادمجان','<path d="M137 79q52-2 39 48-6 60-79 76-49 2-40-38 4-38 80-86" fill="#8a729e"/><path d="M140 83l-16-30 25 10 23-14-2 25 22 15-30 8-11 24z" fill="#82996b"/><path d="M159 64l8-29" stroke="#71865e" stroke-width="9"/><path d="M78 171q12-28 34-42" stroke="#af9abd" stroke-width="9" fill="none"/>'],
+            ['گل رز','<path d="M119 120v89m0-36q-45-1-44-33 33-3 44 33m1 9q43-3 44-34-32-1-44 34" fill="#8ca779" stroke="#789467" stroke-width="7"/><path d="M72 95q-17-35 13-46 4-26 33-16 30-16 45 9 35 3 24 39 5 39-36 51-51 17-79-37" fill="#c9828b"/><path d="M90 78q21-29 49-4-18 32-49 4m-7 25q38 26 70-9m-43-39q45-8 53 27" fill="none" stroke="#a96575" stroke-width="7"/>'],
+            ['مسواک','<path d="M110 102h21v98q-10 16-21 0z" fill="#8eaeb5"/><rect x="103" y="43" width="36" height="71" rx="13" fill="#8eaeb5"/><path d="M103 49H77m26 12H77m26 12H77m26 12H77m26 12H77" stroke="#eee9da" stroke-width="8"/><path d="M120 135v44" stroke="#c4d7d6" stroke-width="7"/>'],
+            ['شانه','<rect x="42" y="81" width="156" height="31" rx="13" fill="#ac94b5"/><path d="M54 103v57m16-57v57m17-57v57m16-57v57m17-57v57m17-57v57m16-57v57m17-57v57m16-57v57" stroke="#ac94b5" stroke-width="9"/>'],
+            ['چکش','<path d="M105 100h27l9 104q-17 16-31 0z" fill="#b9956f"/><path d="M64 60h104l30 31-31-7v22H64z" fill="#9ba9b1"/><path d="M64 60H46v46h18" fill="#798991"/><path d="M119 132l7 60" stroke="#d7b58a" stroke-width="6"/>'],
+            ['عینک','<path d="M45 127L31 76h20m144 51l14-51h-20M100 129q20-16 40 0" fill="none" stroke="#777a91" stroke-width="9"/><rect x="40" y="112" width="63" height="47" rx="19" fill="#c8dce0" stroke="#777a91" stroke-width="8"/><rect x="137" y="112" width="63" height="47" rx="19" fill="#c8dce0" stroke="#777a91" stroke-width="8"/><path d="M52 124l13-3m85 3l13-3" stroke="#eef2ed" stroke-width="5"/>'],
+        ];
+        foreach ($additionalObjects as [$name,$body]) { $add($name,0,$body,true); }
         return $items;
+    }
+    private static function bird(string $color, string $wing, int $beak, int $neck, string $marks): string
+    {
+        $headY = 85 - $neck;
+        $body = '<path d="M104 172l-5 26h-12m43-26l6 26h12" fill="none" stroke="#353545" stroke-width="5"/>';
+        $body .= '<path d="M83 155l-45 27 45 3 23-19" fill="' . $color . '"/><ellipse cx="119" cy="139" rx="48" ry="46" fill="' . $color . '"/>';
+        $body .= '<path d="M139 120Q119 ' . $headY . ' 148 ' . $headY . '" fill="none" stroke="' . $color . '" stroke-width="30"/><circle cx="149" cy="' . $headY . '" r="24" fill="' . $color . '"/>';
+        $body .= '<ellipse cx="103" cy="145" rx="28" ry="31" fill="' . $wing . '"/><path d="M164 ' . ($headY-3) . 'l' . $beak . ' 12-' . $beak . ' 8z" fill="#efc453"/>';
+        return $body . $marks . '<circle cx="154" cy="' . ($headY-4) . '" r="7" fill="white"/><circle cx="156" cy="' . ($headY-4) . '" r="3.6" fill="#252434"/>';
     }
     private static function animal(string $c, string $t): string
     {
@@ -159,6 +198,12 @@ final class Content
             'camel' => '<path d="M65 134q6-69 34-11 24-78 45 2" fill="'.$c.'"/><path d="M147 129V83l18-8 13 57" fill="'.$c.'"/><path d="M78 173v32m57-33v33" stroke="'.$c.'" stroke-width="10"/>',
             'deer' => '<path d="M137 88l-11-43m6 21l-17-7m20 16l14-18m15 31l9-43m-5 21l17-7m-20 16l-12-18" fill="none" stroke="#9f8766" stroke-width="7"/>',
             'kangaroo' => '<path d="M141 91l-12-39 13-5 15 39m6 0l10-39 13 5-10 40M94 176l-54 26 66-8" fill="'.$c.'"/><path d="M114 145q-19 56 26 47" fill="none" stroke="#dfc7a3" stroke-width="17"/>',
+            'donkey' => '<ellipse cx="137" cy="63" rx="9" ry="32" fill="'.$c.'"/><ellipse cx="169" cy="63" rx="9" ry="32" fill="'.$c.'"/><path d="M137 43v35m32-35v35" stroke="#c9b1ad" stroke-width="5"/><ellipse cx="177" cy="128" rx="23" ry="16" fill="#d4c8b9"/><path d="M129 91l-15 25m-53 27l-18 35" stroke="#615c58" stroke-width="8"/>',
+            'hippo' => '<ellipse cx="112" cy="141" rx="62" ry="43" fill="'.$c.'"/><ellipse cx="168" cy="133" rx="37" ry="27" fill="#b5a7b1"/><circle cx="138" cy="85" r="11" fill="'.$c.'"/><circle cx="173" cy="86" r="11" fill="'.$c.'"/><circle cx="178" cy="128" r="4" fill="#6c626c"/><circle cx="194" cy="128" r="4" fill="#6c626c"/><path d="M151 148h31" stroke="#776b76" stroke-width="4"/>',
+            'badger' => '<path d="M59 142l-28 14 30 10" fill="'.$c.'"/><path d="M132 94l30-10 37 42-34 16-39-25z" fill="#eee8d9"/><path d="M136 94l37 38m-8-44l26 32" stroke="#494746" stroke-width="11"/><circle cx="197" cy="125" r="6" fill="#494746"/><path d="M77 194h14m12 0h14m19 0h14" stroke="#494746" stroke-width="5"/>',
+            'raccoon' => '<path d="M64 143q-49-51-37-3 5 21 39 24" fill="'.$c.'"/><path d="M34 122l-2 21m14-8l-1 20" stroke="#535759" stroke-width="10"/><path d="M133 91l3-21 18 15 21-15 4 24" fill="'.$c.'"/><path d="M134 107q22-18 45-1l-7 18-30-2z" fill="#454a4e"/><circle cx="166" cy="108" r="4" fill="#eee9dd"/><ellipse cx="162" cy="133" rx="17" ry="10" fill="#d8d4c8"/>',
+            'hyena' => '<path d="M65 132l27-28 38 13" fill="'.$c.'"/><path d="M78 117l19-12 27 16" fill="none" stroke="#75634d" stroke-width="10"/><circle cx="133" cy="84" r="14" fill="'.$c.'"/><circle cx="176" cy="86" r="14" fill="'.$c.'"/><ellipse cx="176" cy="129" rx="23" ry="16" fill="#8e785b"/><g fill="#78664c"><circle cx="80" cy="139" r="5"/><circle cx="100" cy="153" r="5"/><circle cx="120" cy="134" r="5"/><circle cx="134" cy="156" r="5"/></g>',
+            'gorilla' => '<ellipse cx="105" cy="141" rx="51" ry="47" fill="'.$c.'"/><path d="M81 128l-27 64m73-63l18 64" stroke="'.$c.'" stroke-width="24"/><ellipse cx="153" cy="115" rx="26" ry="27" fill="#92918e"/><path d="M133 102h38" stroke="#454a4f" stroke-width="10"/><ellipse cx="159" cy="125" rx="15" ry="10" fill="#65696a"/><path d="M149 141h18" stroke="#454a4f" stroke-width="4"/>',
             'penguin' => '<ellipse cx="120" cy="130" rx="49" ry="72" fill="'.$c.'"/><ellipse cx="120" cy="151" rx="32" ry="43" fill="#f7eedc"/><path d="M81 199h29m20 0h29M111 108l26 8-17 12" stroke="#e5b463" fill="#e5b463" stroke-width="8"/><path d="M76 122l-18 41m105-41l18 41" stroke="'.$c.'" stroke-width="16"/>',
             'ostrich' => '<ellipse cx="108" cy="147" rx="52" ry="36" fill="#4b505a"/><ellipse cx="96" cy="149" rx="28" ry="23" fill="#ded9cd"/><path d="M134 141l8-82" stroke="#bfafa3" stroke-width="16"/><circle cx="147" cy="54" r="20" fill="#bfafa3"/><path d="M164 51l22 8-22 5" fill="#d9bd7e"/><path d="M98 173l-1 38m30-38l3 38" stroke="#bfafa3" stroke-width="7"/>',
             default => '',
@@ -166,6 +211,11 @@ final class Content
         if (in_array($t,['penguin','ostrich'],true)) { return $extra . ($t==='penguin'?'<circle cx="105" cy="94" r="5" fill="white"/><circle cx="133" cy="94" r="5" fill="white"/>':'<circle cx="152" cy="49" r="4" fill="#343342"/>'); }
         if ($extra !== '') { return $base . $extra . $eyes; }
         return match ($t) {
+            'otter' => '<path d="M84 160Q43 164 28 194q32-8 67-12" fill="'.$c.'"/><ellipse cx="118" cy="144" rx="52" ry="37" fill="'.$c.'"/><path d="M93 162l-11 35m55-36l12 34" stroke="'.$c.'" stroke-width="15"/><circle cx="164" cy="115" r="31" fill="'.$c.'"/><circle cx="144" cy="92" r="10" fill="'.$c.'"/><circle cx="184" cy="94" r="10" fill="'.$c.'"/><ellipse cx="174" cy="127" rx="24" ry="15" fill="#d3b591"/><circle cx="170" cy="123" r="5" fill="#454144"/><circle cx="175" cy="105" r="4" fill="#454144"/><path d="M184 127l24-5m-23 12l23 6" stroke="#665246" stroke-width="3"/><path d="M37 202q24-10 43 0m77 0q23-10 45 0" fill="none" stroke="#9fbfc2" stroke-width="4"/>',
+            'chameleon' => '<path d="M75 146Q53 90 32 130q-10 35 20 34 22-8 7-24" fill="none" stroke="'.$c.'" stroke-width="14"/><ellipse cx="119" cy="143" rx="48" ry="31" fill="'.$c.'"/><path d="M147 138l12-63 43 45-8 31z" fill="'.$c.'"/><circle cx="179" cy="113" r="15" fill="#b7c48e"/><circle cx="184" cy="113" r="5" fill="#424b3f"/><path d="M92 158l-9 31h20m36-31l15 30h19" fill="none" stroke="'.$c.'" stroke-width="9"/><path d="M83 121l12-12 9 8 12-11 10 11 11-7" fill="#648b60"/><path d="M183 141h19" stroke="#58784d" stroke-width="4"/>',
+            'lizard' => '<path d="M90 141Q39 163 26 190q40-9 78-31" fill="'.$c.'"/><ellipse cx="131" cy="135" rx="43" ry="24" fill="'.$c.'"/><path d="M107 125l-16-27-23 2m40 49l-11 30-26 8m77-59l13-29 21-4m-34 54l19 25 23 3" fill="none" stroke="'.$c.'" stroke-width="9"/><path d="M161 123l33-12 17 16-9 19-44 1z" fill="'.$c.'"/><path d="M94 134l49-2" stroke="#d6c59a" stroke-width="5"/><circle cx="194" cy="125" r="5" fill="#4f4a3f"/>',
+            'scorpion' => '<path d="M112 155Q38 165 43 111q2-35 28-44l16 15-17 12-10-7" fill="none" stroke="'.$c.'" stroke-width="14"/><path d="M70 67l7-28 17 22-7 21" fill="#665343"/><ellipse cx="132" cy="153" rx="37" ry="25" fill="'.$c.'"/><path d="M108 143l-25-18-14 5m37 23l-25 5-8 14m44-5l-20 24m49-24l17 24m-10-37l26 8 7 15m-35-35l25-13 16 5m-41-15l9-23m-18 20l-3-29" fill="none" stroke="'.$c.'" stroke-width="6"/><path d="M151 109q-31-16-13-39l8 19 17-11q7 22-12 31m20-5q1-32 28-28l-11 17 19 8q-17 18-36 3" fill="'.$c.'"/><path d="M116 141v23m13-30v38m13-34v31" stroke="#95784f" stroke-width="3"/>',
+            'shrimp' => '<path d="M163 92Q72 54 56 128q-8 54 52 57 33 3 48-27-33 22-58-6-24-34 35-33l40 7z" fill="'.$c.'"/><path d="M93 87l9 31m-32-18l17 24m-29-3l22 10m-18 19l23-2m-4 29l11-19m12 27l2-20m18 17l-4-18" stroke="#b98170" stroke-width="4"/><path d="M158 99l44-25m-41 17q9-57 45-43m-48 67q36 11 50-11m-101 48l15 27m-1-28l18 24" fill="none" stroke="#b98170" stroke-width="4"/><path d="M154 157l26-20-2 26-21 8 6 18-27-7" fill="#c28c77"/><circle cx="157" cy="95" r="6" fill="#494143"/>',
             'turtle' => '<path d="M68 156l-17 31m44-25l-4 28m61-33l16 30" stroke="#809c78" stroke-width="15"/><circle cx="182" cy="138" r="24" fill="#91b58b"/><path d="M48 160q0-115 114 0z" fill="'.$c.'" stroke="#537b67" stroke-width="5"/><path d="M108 99l-21 29 17 28 36-9-4-28z" fill="#a8c198" stroke="#537b67" stroke-width="4"/>' . $eyes,
             'frog' => '<ellipse cx="120" cy="149" rx="55" ry="45" fill="'.$c.'"/><ellipse cx="120" cy="164" rx="30" ry="25" fill="#c1d5a3"/><circle cx="91" cy="107" r="23" fill="'.$c.'"/><circle cx="149" cy="107" r="23" fill="'.$c.'"/><g fill="#fff7e4"><circle cx="91" cy="105" r="13"/><circle cx="149" cy="105" r="13"/></g><path d="M72 150l-30 37 39 8m87-45l30 37-39 8" fill="none" stroke="'.$c.'" stroke-width="15"/><circle cx="91" cy="105" r="6" fill="#343342"/><circle cx="149" cy="105" r="6" fill="#343342"/><path d="M102 137q18 13 36 0" fill="none" stroke="#597d59" stroke-width="4"/>',
             'snake' => '<path d="M55 180q-22-44 34-42t55-38q0-40 39-24" fill="none" stroke="'.$c.'" stroke-width="27"/><ellipse cx="182" cy="78" rx="28" ry="19" fill="'.$c.'"/><circle cx="190" cy="72" r="4" fill="#353543"/><path d="M206 80l14 3m-6-1l5-6" stroke="#cb8482" stroke-width="4"/><path d="M57 162l15 12m41-36l-5 13m45-41l-12-3" stroke="#b9caa0" stroke-width="8"/>',
