@@ -49,6 +49,14 @@ async function api(path, body, extraHeaders={}) {
   const data=await response.json(); const received=Date.now();
   if (typeof data.server_now==='number') { samples.push({rtt:received-sent,value:data.server_now-(sent+received)/2}); samples=samples.slice(-9); const best=[...samples].sort((a,b)=>a.rtt-b.rtt).slice(0,3); offset=best.reduce((sum,s)=>sum+s.value,0)/best.length; }
   if (!response.ok || !data.ok) { const error=new Error(data.error?.message || 'سرویس بازی در دسترس نیست.'); error.code=data.error?.code || 'network'; error.status=response.status; throw error; }
+  const viewer=data.profile || data.viewer;
+  if(profile && viewer){
+   if(viewer.id!==profile.id){location.reload();throw new Error('هویت تغییر کرده؛ صفحه دوباره بارگیری می‌شود.');}
+   const previousName=profile.name;
+   profile={...profile,...viewer};
+   const joinName=$('kq-join-name');
+   if(joinName && joinName.value===previousName)joinName.value=profile.name;
+  }
   return data;
  } catch(e) { if (e.name==='AbortError' || e instanceof TypeError || e instanceof SyntaxError) { connected=false;const error=new Error('ارتباط قطع شد؛ بازی چندنفره به اینترنت نیاز دارد. پاسخ آفلاین ارسال نمی‌شود.'); error.code='network'; throw error; } throw e; }
  finally {clearTimeout(timeout);}
@@ -75,7 +83,7 @@ function acceptState(s) {
 }
 function render(force=false) {
  if (!booted) return;
- const printable=JSON.stringify({page,state:{...state,server_now:0},profile:page==='home'?profile:null,pending,answerError});
+ const printable=JSON.stringify({page,state:{...state,server_now:0},profile,pending,answerError});
  if (!force && printable===fingerprint) return; fingerprint=printable;
  if (page==='profile' || page==='leaders' || page==='create' || page==='invite') return;
  const codeInput=$('kq-room-code');const selection=codeInput && document.activeElement===codeInput?{start:codeInput.selectionStart,end:codeInput.selectionEnd}:null;
@@ -155,7 +163,7 @@ function renderGame() {
 function renderQueue() {
  heading('بازی سریع','صف عمومی · از ۲ تا '+fa(state.capacity)+' نفر');
  const status=node('div','kq-center');status.append(node('span','kq-pill kq-green',fa(state.count)+' نفر در صف'));
- const orbit=node('div','kq-orbit');const core=append(node('div','kq-orbit-core'),node('strong','','…'),node('small','','تا شروع بازی'));core.firstChild.id='kq-clock';orbit.append(core,avatar(profile.name,0));status.append(orbit,node('h2','','هم‌بازی‌ها دارن می‌رسن!'),p('با پایان شمارش، بازی برای همه شروع می‌شه.'));
+ const orbit=node('div','kq-orbit');const core=append(node('div','kq-orbit-core'),node('strong','','…'),node('small','','تا شروع بازی'));core.firstChild.id='kq-clock';orbit.append(core,avatar(profile.name,profile.avatar));status.append(orbit,node('h2','','هم‌بازی‌ها دارن می‌رسن!'),p('با پایان شمارش، بازی برای همه شروع می‌شه.'));
  content.append(status,card(node('h3','',fa(state.count)+' از '+fa(state.capacity)+' بازیکن'),p('جایگاه تو در صف: '+fa(state.position)+' · با پر شدن صف زودتر شروع می‌کنیم.')));
  const waited=p('');waited.id='kq-waited';
  content.append(note('برای شروع، حداقل ۲ نفر لازمه','اگر تعداد کمتر بشه، دوباره منتظر می‌مونیم.'),waited,button('خروج از صف',leave,'kq-white'));
@@ -255,7 +263,7 @@ async function renderInvitation() {
   content.append(label,name,note('همه تا آخر بازی می‌مونن','اشتباه فقط امتیاز کم می‌کنه؛ حذف نداریم.'),p('۳۰ دور · پر! یا رد کن · بیشترین امتیاز برنده'));
   if(state.engagement)content.append(note('هم‌اکنون در صف یا اتاق هستی','برای ادامه به وضعیت فعلی برگرد.'),button('بازگشت به وضعیت فعلی',()=>navigate('game')));
   else content.append(button(preview.phase==='playing'?'پیوستن به انتظار دست بعد':'پیوستن به اتاق',async()=>{
-   const renamed=await api('rename',{name:name.value,avatar:profile.avatar});profile=renamed.profile;
+   if(name.value!==profile.name){const renamed=await api('rename',{name:name.value,avatar:profile.avatar});profile=renamed.profile;}
    await mutation('join',{invitation},true);history.replaceState({},'',base+'/');invitation='';
   },'',!preview.available));
   if(!preview.available)content.append(note(preview.phase==='playing'?'فهرست انتظار پر است':'اتاق پر است','کمی بعد دوباره بررسی کن.'));
@@ -345,6 +353,8 @@ window.addEventListener('online',()=>{failures=0;schedule(0);});
 $('kq-reconnect').addEventListener('click',()=>schedule(0));
 window.addEventListener('offline',()=>{connected=false;$('kq-reconnect').hidden=false;$('kq-connection').hidden=false;$('kq-connection').textContent='مسابقهٔ چندنفره به اینترنت نیاز دارد؛ پاسخ آفلاین ذخیره یا ارسال نمی‌شود.';});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});
+// Back/forward restoration resumes the existing poll with a fresh server identity.
+window.addEventListener('pageshow',event=>{if(event.persisted && booted)schedule(0);});
 async function bootstrap(){
  const begin=async()=>{let nonce=document.querySelector('meta[name="kq-bootstrap"]').content;
  try{return await api('bootstrap',{}, {'X-KQ-Boot':nonce});}catch(e){if(e.code!=='csrf')throw e;const response=await fetch(base+'/',{credentials:'same-origin',cache:'no-store'});const html=new DOMParser().parseFromString(await response.text(),'text/html');nonce=html.querySelector('meta[name="kq-bootstrap"]').content;return api('bootstrap',{}, {'X-KQ-Boot':nonce});}};

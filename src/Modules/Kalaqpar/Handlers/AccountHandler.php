@@ -8,9 +8,10 @@ use Src\Modules\Kalaqpar\Services\{Accounts, Factory, GameError, Identity, Publi
 
 final class AccountHandler extends BaseHandler
 {
+    // Preserve form POST origins while keeping reset tokens out of referrer URLs.
     private const HEADERS = [
         'Cache-Control' => 'private, no-store, max-age=0', 'Pragma' => 'no-cache', 'Vary' => 'Cookie',
-        'Referrer-Policy' => 'no-referrer', 'X-Content-Type-Options' => 'nosniff',
+        'Referrer-Policy' => 'strict-origin', 'X-Content-Type-Options' => 'nosniff',
         'Content-Security-Policy' => "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     ];
     public function register(): Response { return $this->run('register'); }
@@ -42,8 +43,9 @@ final class AccountHandler extends BaseHandler
     {
         $headers = $this->request->getHeaders();
         $site = $headers['sec-fetch-site'] ?? '';
-        $base = parse_url(PublicUrl::base($f->settings));
-        $origin = $base['scheme'] . '://' . $base['host'] . (isset($base['port']) ? ':' . $base['port'] : '');
+        // Match the receiving origin, as ApiHandler does; APP_URL may belong to another module.
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : ($_SERVER['REQUEST_SCHEME'] ?? 'http');
+        $origin = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
         if (($site !== '' && !in_array($site, ['same-origin', 'none'], true)) ||
             (isset($headers['origin']) && $headers['origin'] !== $origin)) {
             throw new GameError('csrf', 'مبدأ درخواست معتبر نیست؛ صفحه را تازه کنید.', 403);

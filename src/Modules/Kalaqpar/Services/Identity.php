@@ -9,7 +9,9 @@ final class Identity
 
     public static function cookie(string $name, string $value, int $expires): void
     {
-        setcookie($name, $value, ['expires' => $expires, 'path' => PublicUrl::path(),
+        // Cookie paths must contain only the URL path, including on host-based routes.
+        $path = parse_url(PublicUrl::path(), PHP_URL_PATH) ?: '/';
+        setcookie($name, $value, ['expires' => $expires, 'path' => $path,
             'secure' => parse_url(PublicUrl::base(), PHP_URL_SCHEME) === 'https' || (bool) (Settings::values()['secure_cookie'] ?? false) || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
             'httponly' => true, 'samesite' => 'Lax']);
     }

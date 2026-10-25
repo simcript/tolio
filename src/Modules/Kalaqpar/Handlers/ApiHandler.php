@@ -56,7 +56,10 @@ final class ApiHandler extends BaseHandler
                 Progression::pulse($factory);
             }
             $result = $work($factory, $u, $body);
-            return $this->json(['ok' => true, 'server_now' => Settings::now()] + ($result ?? []));
+            // Reuse the resolved identity so open game pages see profile edits on their existing requests.
+            $display = $result['profile'] ?? ($u ? ['id' => $u['public_id'], 'name' => $u['name'], 'avatar' => $u['avatar']] : null);
+            $viewer = $display ? ['viewer' => array_intersect_key($display, array_flip(['id', 'name', 'avatar']))] : [];
+            return $this->json(['ok' => true, 'server_now' => Settings::now()] + ($result ?? []) + $viewer);
         } catch (GameError $e) {
             return $this->json(['ok' => false, 'error' => ['code' => $e->key, 'message' => $e->getMessage()]], $e->status);
         } catch (\Throwable $e) {

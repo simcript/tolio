@@ -9,7 +9,7 @@ $fieldError = static fn ($keys) => $error && in_array($error_key, $keys, true) ?
 ?>
 <section id="account" class="kq-card kq-account-section" aria-labelledby="account-title" tabindex="-1">
     <h2 id="account-title" tabindex="-1"><?= $escape(['register' => 'حساب من', 'login' => 'ورود به حساب', 'forgot-password' => $message ? 'درخواست بازیابی ثبت شد' : 'بازیابی رمز عبور', 'reset-password' => $valid_token ? 'تغییر رمز عبور' : 'این لینک قابل استفاده نیست'][$page] ?? 'حساب من') ?></h2>
-    <?php if ($error && $page !== 'name'): ?><div id="account-error" class="kq-note <?= $error_key === 'credentials' ? 'kq-red' : 'kq-yellow' ?>" role="alert" tabindex="-1"><?= $escape($error) ?></div><?php endif ?>
+    <?php if ($error && ($page !== 'name' || !$profile)): ?><div id="account-error" class="kq-note <?= $error_key === 'credentials' ? 'kq-red' : 'kq-yellow' ?>" role="alert" tabindex="-1"><?= $escape($error) ?></div><?php endif ?>
     <?php if (!$csrf || (!$user && !$reset && $page !== 'forgot-password')): ?>
         <p>سرویس حساب فعلاً در دسترس نیست. برای ادامه به بازی برگرد و دوباره تلاش کن.</p><a class="kq-button kq-retry" href="<?= $escape($accountUrl) ?>">تلاش دوباره</a>
     <?php elseif ($reset && !$valid_token): ?>
