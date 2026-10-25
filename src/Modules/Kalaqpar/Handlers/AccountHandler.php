@@ -26,7 +26,7 @@ final class AccountHandler extends BaseHandler
     public function logout(): Response { return $this->run('logout', true); }
     private function redirect(string $path): Response
     {
-        return Response::redirect(PublicUrl::local(url($path, 'kalaqpar')), HttpStatusEnum::SEE_OTHER, self::HEADERS);
+        return Response::redirect(PublicUrl::local(url($path, 'kalaqpar.tolio.ir')), HttpStatusEnum::SEE_OTHER, self::HEADERS);
     }
     private function nonce(): string
     {

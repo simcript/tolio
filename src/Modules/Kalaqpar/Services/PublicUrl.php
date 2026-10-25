@@ -30,8 +30,9 @@ final class PublicUrl
     // This also handles CLI fallback when app.url contains a full URL.
     public static function local(string $url, ?array $settings = null): string
     {
-        $origin = ($_SERVER['REQUEST_SCHEME'] ?? 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? config('app.url'));
-        return self::mountPath($settings) . substr($url, strlen($origin));
+//        $origin = ($_SERVER['REQUEST_SCHEME'] ?? 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? config('app.url'));
+//        return self::mountPath($settings) . substr($url, strlen($origin));
+        return $url;
     }
 
     public static function absolute(string $url, ?array $settings = null): string
@@ -41,10 +42,10 @@ final class PublicUrl
 
     public static function path(?array $settings = null): string
     {
-        return rtrim(self::local(url('', 'kalaqpar'), $settings), '/');
+        return rtrim(self::local(url('', 'kalaqpar.tolio.ir'), $settings), '/');
     }
     public static function room(string $code, ?array $settings = null): string
     {
-        return self::absolute(url('join/' . Invitation::normalize($code), 'kalaqpar'), $settings);
+        return url('join/' . Invitation::normalize($code), 'kalaqpar.tolio.ir');
     }
 }

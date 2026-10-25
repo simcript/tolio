@@ -240,10 +240,10 @@ function renderCreate() {
  heading('بازی با دوستان','یک اتاق مخصوص جمع خودتون بساز');content.replaceChildren();
  const group=append(node('div','kq-hero'),append(node('div','kq-group'),avatar('ش',2),avatar('تو',0),avatar('ن',1)),node('h2','','لینکش رو بفرست، دور هم بازی کنین'));
  const form=node('form');const name=node('input');name.id='kq-room-name';name.required=true;name.maxLength=40;name.value='دورهمی ما';const label=node('label','kq-field','نام اتاق');label.htmlFor=name.id;
- let capacity=30;const output=node('output','',fa(capacity)+' نفر');const decrease=button('−',()=>{capacity=Math.max(2,capacity-1);output.textContent=fa(capacity)+' نفر';});decrease.setAttribute('aria-label','کاهش ظرفیت');const increase=button('+',()=>{capacity=Math.min(30,capacity+1);output.textContent=fa(capacity)+' نفر';});increase.setAttribute('aria-label','افزایش ظرفیت');
+ let capacity=15;const output=node('output','',fa(capacity)+' نفر');const decrease=button('−',()=>{capacity=Math.max(2,capacity-1);output.textContent=fa(capacity)+' نفر';});decrease.setAttribute('aria-label','کاهش ظرفیت');const increase=button('+',()=>{capacity=Math.min(30,capacity+1);output.textContent=fa(capacity)+' نفر';});increase.setAttribute('aria-label','افزایش ظرفیت');
  const submit=button('ساخت اتاق و دریافت دعوت',async()=>{if(!form.reportValidity())return;await mutation('create',{name:name.value,capacity},true);});
  form.addEventListener('submit',e=>{e.preventDefault();submit.click();});
- form.append(label,name,node('h2','mt-4','ظرفیت اتاق'),p('از ۲ تا ۳۰ نفر؛ لازم نیست اتاق پر بشه.'),append(node('div','kq-stepper'),increase,output,decrease),note('شروع بازی دست توئه','با حضور حداقل دو نفر، هر وقت آماده بودین شروع کن.'),p('۱۵ دور · ورود با کد یا لینک · بدون حذف'),submit);content.append(group,form,codeForm());
+ form.append(label,name,node('h2','mt-4','ظرفیت اتاق'),p('از ۲ تا ۳۰ نفر؛ لازم نیست اتاق پر بشه.'),append(node('div','kq-stepper'),increase,output,decrease),note('شروع بازی دست توئه','با حضور حداقل دو نفر، هر وقت آماده بودین شروع کن.'),p('۳۰ دور · ورود با کد یا لینک · بدون حذف'),submit);content.append(group,form,codeForm());
 }
 async function renderInvitation() {
  heading('دعوت به بازی','بدون ثبت‌نام، به جمع دوست‌هات بپیوند');content.replaceChildren(card(p('در حال بررسی دعوت…')));const epoch=viewEpoch;
@@ -252,7 +252,7 @@ async function renderInvitation() {
   history.replaceState({},'',base+'/join/'+invitation);content.replaceChildren();
   const box=append(node('div','kq-profile-head'),avatar('د',0,true),node('h2','',preview.name),p('ظرفیت '+fa(preview.capacity)+' نفر · '+(preview.phase==='playing'?'در حال بازی':'لابی')));content.append(box,inviteCard(preview));
   const label=node('label','kq-field','دوست‌هات با چه اسمی بشناسنت؟');label.htmlFor='kq-join-name';const name=node('input');name.type='text';name.id='kq-join-name';name.maxLength=30;name.value=profile.name;
-  content.append(label,name,note('همه تا آخر بازی می‌مونن','اشتباه فقط امتیاز کم می‌کنه؛ حذف نداریم.'),p('۱۵ دور · پر! یا رد کن · بیشترین امتیاز برنده'));
+  content.append(label,name,note('همه تا آخر بازی می‌مونن','اشتباه فقط امتیاز کم می‌کنه؛ حذف نداریم.'),p('۳۰ دور · پر! یا رد کن · بیشترین امتیاز برنده'));
   if(state.engagement)content.append(note('هم‌اکنون در صف یا اتاق هستی','برای ادامه به وضعیت فعلی برگرد.'),button('بازگشت به وضعیت فعلی',()=>navigate('game')));
   else content.append(button(preview.phase==='playing'?'پیوستن به انتظار دست بعد':'پیوستن به اتاق',async()=>{
    const renamed=await api('rename',{name:name.value,avatar:profile.avatar});profile=renamed.profile;

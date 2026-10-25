@@ -33,7 +33,11 @@ class DefaultFoundation extends Foundation
         'musician' => MusicianModule::class,
         'onregex' => OnregexModule::class,
         'red-json' => RedJsonModule::class,
-        'kalaqpar' => KalaqparModule::class,
+//        'kalaqpar' => KalaqparModule::class,
+        'kalaqpar.tolio.ir' => [
+            'class' => KalaqparModule::class,
+            'resolver' => ModuleResolverEnum::HOST
+        ],
     ];
 
     public static function exception(): string

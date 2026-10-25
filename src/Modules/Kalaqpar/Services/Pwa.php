@@ -16,7 +16,7 @@ final class Pwa
     public static function asset(string $file): string
     {
         if (!isset(self::ASSETS[$file])) { throw new \InvalidArgumentException('Unknown PWA asset.'); }
-        return PublicUrl::local(url('assets/' . $file . '?v=' . hash_file('sha256', dirname(__DIR__) . '/Assets/' . $file), 'kalaqpar'));
+        return PublicUrl::local(url('assets/' . $file . '?v=' . hash_file('sha256', dirname(__DIR__) . '/Assets/' . $file), 'kalaqpar.tolio.ir'));
     }
 
     public static function release(): string

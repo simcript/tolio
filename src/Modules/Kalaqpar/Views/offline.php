@@ -13,5 +13,5 @@
 <p>مسابقهٔ چندنفره به اینترنت نیاز دارد؛ بازی آفلاین پشتیبانی نمی‌شود. پاسخ‌ها در حالت آفلاین ذخیره یا بعداً ارسال نمی‌شوند. زمان و امتیاز معتبر را سرور تعیین می‌کند.</p>
 <p>پس از اتصال، دوباره تلاش کن تا وضعیت فعلی از سرور دریافت شود. باز کردن برنامه یا دعوت، تو را خودکار به اتاقی وارد نمی‌کند.</p>
 <a class="kq-button kq-retry" href="">تلاش دوباره</a>
-<a href="<?= htmlspecialchars(PublicUrl::local(url('', 'kalaqpar')), ENT_QUOTES, 'UTF-8') ?>">رفتن به خانه</a>
+<a href="<?= htmlspecialchars(PublicUrl::local(url('', 'kalaqpar.tolio.ir')), ENT_QUOTES, 'UTF-8') ?>">رفتن به خانه</a>
 </section></main></body></html>

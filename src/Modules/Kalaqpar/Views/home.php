@@ -6,7 +6,7 @@
         <span class="kq-brand d-none" aria-hidden="true">↑</span>
     </header>
     <nav class="kq-pwa-actions d-none" aria-label="حساب اختیاری">
-        <a id="kq-account" class="kq-link" href="<?= htmlspecialchars(PublicUrl::local(url('account', 'kalaqpar')), ENT_QUOTES, 'UTF-8') ?>">پروفایل و حساب</a>
+        <a id="kq-account" class="kq-link" href="<?= htmlspecialchars(PublicUrl::local(url('account', 'kalaqpar.tolio.ir')), ENT_QUOTES, 'UTF-8') ?>">پروفایل و حساب</a>
     </nav>
     <div class="kq-pwa-actions d-none">
         <button id="kq-install" type="button" class="kq-link" hidden>نصب کلاغ‌پر</button>

@@ -29,9 +29,9 @@ final class PwaHandler extends BaseHandler
                 'purpose' => str_contains($file, 'maskable') ? 'maskable' : 'any'];
         }
         return $this->response(json_encode([
-            'id' => PublicUrl::local(url('', 'kalaqpar')), 'name' => 'کلاغ‌پر؛ بازی گروهی', 'short_name' => 'کلاغ‌پر',
+            'id' => PublicUrl::local(url('', 'kalaqpar.tolio.ir')), 'name' => 'کلاغ‌پر؛ بازی گروهی', 'short_name' => 'کلاغ‌پر',
             'lang' => 'fa', 'dir' => 'rtl', 'display' => 'standalone',
-            'start_url' => PublicUrl::local(url('', 'kalaqpar')), 'scope' => PublicUrl::local(url('', 'kalaqpar')),
+            'start_url' => PublicUrl::local(url('', 'kalaqpar.tolio.ir')), 'scope' => PublicUrl::local(url('', 'kalaqpar.tolio.ir')),
             'theme_color' => '#f8f5ed', 'background_color' => '#f8f5ed',
             'description' => 'بازی گروهی آنلاین کلاغ‌پر؛ مسابقه به اینترنت نیاز دارد.', 'icons' => $icons,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), 'application/manifest+json; charset=utf-8');
@@ -41,11 +41,11 @@ final class PwaHandler extends BaseHandler
     {
         $base = PublicUrl::path();
         $prefix = 'kalaqpar-pwa-' . substr(hash('sha256', $base), 0, 16) . '-';
-        $offline = PublicUrl::local(url('offline?v=' . Pwa::release(), 'kalaqpar'));
+        $offline = PublicUrl::local(url('offline?v=' . Pwa::release(), 'kalaqpar.tolio.ir'));
         $config = json_encode(['base' => $base, 'prefix' => $prefix, 'cache' => $prefix . Pwa::release(),
             'offline' => $offline, 'assets' => array_map(Pwa::asset(...), array_keys(Pwa::ASSETS))], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $script = str_replace('/* KQ_CONFIG */', 'const CONFIG = ' . $config . ';', file_get_contents(dirname(__DIR__) . '/Assets/service-worker.js'));
-        return $this->response($script, 'application/javascript; charset=utf-8', ['Service-Worker-Allowed' => PublicUrl::local(url('', 'kalaqpar'))]);
+        return $this->response($script, 'application/javascript; charset=utf-8', ['Service-Worker-Allowed' => PublicUrl::local(url('', 'kalaqpar.tolio.ir'))]);
     }
 
     public function offline(): Response
