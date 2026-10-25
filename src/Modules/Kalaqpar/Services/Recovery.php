@@ -83,7 +83,7 @@ final class Recovery
                 });
                 if (!$account) { continue; }
                 try {
-                    $url = PublicUrl::base($this->settings) . '/kalaqpar/reset-password?token=' . $raw;
+                    $url = PublicUrl::absolute(url('reset-password?token=' . $raw, 'kalaqpar'), $this->settings);
                     $mailer->send($account['email'], $url);
                     $this->db->atomic(fn () => $this->db->run('DELETE FROM kalaqpar_recovery_queue WHERE email_canonical=?', [$job['email_canonical']]));
                     $sent++;

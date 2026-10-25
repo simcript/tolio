@@ -129,7 +129,7 @@ final class State
             $state['starts_at'] = $r['starts_at'];
             $state['deadline_at'] = $r['deadline_at'];
             if (Settings::now() >= $r['starts_at']) {
-                $state['item'] = ['name' => $r['name'], 'image' => PublicUrl::path($this->settings) . '/assets/items/' . $r['asset'] . '.svg'];
+                $state['item'] = ['name' => $r['name'], 'image' => PublicUrl::local(url('assets/items/' . $r['asset'] . '.svg', 'kalaqpar'), $this->settings)];
             }
             $answer = $participant ? $this->db->one('SELECT action,request_id,accepted_at FROM kalaqpar_responses WHERE round_id=? AND user_id=?', [$r['id'], $id]) : null;
             $state['answer'] = $answer;

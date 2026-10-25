@@ -17,7 +17,7 @@ final class DefaultHandler extends BaseHandler
     {
         // Keep the launch page inside the strictly trailing-slash worker scope.
         if (!str_ends_with(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '', '/')) {
-            return Response::redirect(PublicUrl::path() . '/', HttpStatusEnum::TEMPORARY_REDIRECT, ['Cache-Control' => 'no-store']);
+            return Response::redirect(PublicUrl::local(url('', 'kalaqpar')), HttpStatusEnum::TEMPORARY_REDIRECT, ['Cache-Control' => 'no-store']);
         }
         return $this->page('');
     }

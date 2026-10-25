@@ -1,7 +1,7 @@
 <?php
 namespace Src\Modules\Kalaqpar\Services;
 
-// Pano 1.7.3's url() prefers HTTP_HOST. Invitations must use trusted config only.
+// Keep deployment prefixes and trusted public origins around Pano-generated routes.
 final class PublicUrl
 {
     public static function base(?array $settings = null): string
@@ -25,9 +25,26 @@ final class PublicUrl
         return rtrim(parse_url(self::base($settings), PHP_URL_PATH) ?? '', '/');
     }
 
-    public static function path(?array $settings = null): string { return self::mountPath($settings) . '/kalaqpar'; }
+    // url() returns an unescaped absolute URL without the configured mount path.
+    // For Kalaqpar's PATH resolver, discard exactly the helper's origin.
+    // This also handles CLI fallback when app.url contains a full URL.
+    public static function local(string $url, ?array $settings = null): string
+    {
+        $origin = ($_SERVER['REQUEST_SCHEME'] ?? 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? config('app.url'));
+        return self::mountPath($settings) . substr($url, strlen($origin));
+    }
+
+    public static function absolute(string $url, ?array $settings = null): string
+    {
+        return self::base($settings) . substr(self::local($url, $settings), strlen(self::mountPath($settings)));
+    }
+
+    public static function path(?array $settings = null): string
+    {
+        return rtrim(self::local(url('', 'kalaqpar'), $settings), '/');
+    }
     public static function room(string $code, ?array $settings = null): string
     {
-        return self::base($settings) . '/kalaqpar/join/' . Invitation::normalize($code);
+        return self::absolute(url('join/' . Invitation::normalize($code), 'kalaqpar'), $settings);
     }
 }

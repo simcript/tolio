@@ -23,16 +23,15 @@ final class PwaHandler extends BaseHandler
 
     public function manifest(): Response
     {
-        $base = PublicUrl::path();
         $icons = [];
         foreach (['icon-192.png' => '192x192', 'icon-512.png' => '512x512', 'icon-maskable-512.png' => '512x512'] as $file => $sizes) {
             $icons[] = ['src' => Pwa::asset($file), 'sizes' => $sizes, 'type' => 'image/png',
                 'purpose' => str_contains($file, 'maskable') ? 'maskable' : 'any'];
         }
         return $this->response(json_encode([
-            'id' => $base . '/', 'name' => 'کلاغ‌پر؛ بازی گروهی', 'short_name' => 'کلاغ‌پر',
+            'id' => PublicUrl::local(url('', 'kalaqpar')), 'name' => 'کلاغ‌پر؛ بازی گروهی', 'short_name' => 'کلاغ‌پر',
             'lang' => 'fa', 'dir' => 'rtl', 'display' => 'standalone',
-            'start_url' => $base . '/', 'scope' => $base . '/',
+            'start_url' => PublicUrl::local(url('', 'kalaqpar')), 'scope' => PublicUrl::local(url('', 'kalaqpar')),
             'theme_color' => '#f8f5ed', 'background_color' => '#f8f5ed',
             'description' => 'بازی گروهی آنلاین کلاغ‌پر؛ مسابقه به اینترنت نیاز دارد.', 'icons' => $icons,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), 'application/manifest+json; charset=utf-8');
@@ -42,11 +41,11 @@ final class PwaHandler extends BaseHandler
     {
         $base = PublicUrl::path();
         $prefix = 'kalaqpar-pwa-' . substr(hash('sha256', $base), 0, 16) . '-';
-        $offline = $base . '/offline?v=' . Pwa::release();
+        $offline = PublicUrl::local(url('offline?v=' . Pwa::release(), 'kalaqpar'));
         $config = json_encode(['base' => $base, 'prefix' => $prefix, 'cache' => $prefix . Pwa::release(),
             'offline' => $offline, 'assets' => array_map(Pwa::asset(...), array_keys(Pwa::ASSETS))], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $script = str_replace('/* KQ_CONFIG */', 'const CONFIG = ' . $config . ';', file_get_contents(dirname(__DIR__) . '/Assets/service-worker.js'));
-        return $this->response($script, 'application/javascript; charset=utf-8', ['Service-Worker-Allowed' => $base . '/']);
+        return $this->response($script, 'application/javascript; charset=utf-8', ['Service-Worker-Allowed' => PublicUrl::local(url('', 'kalaqpar'))]);
     }
 
     public function offline(): Response

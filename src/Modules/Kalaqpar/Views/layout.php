@@ -1,4 +1,4 @@
-<?php use Src\Modules\Kalaqpar\Services\Pwa; ?>
+<?php use Src\Modules\Kalaqpar\Services\{PublicUrl, Pwa}; ?>
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
@@ -10,9 +10,9 @@
     <meta name="referrer" content="no-referrer">
     <meta name="kq-bootstrap" content="<?= htmlspecialchars($nonce, ENT_QUOTES, 'UTF-8') ?>">
     <title>کلاغ‌پر | با هم بیشتر خوش می‌گذره</title>
-    <link rel="manifest" href="<?= htmlspecialchars($base_path, ENT_QUOTES, 'UTF-8') ?>/manifest.webmanifest">
+    <link rel="manifest" href="<?= htmlspecialchars(PublicUrl::local(url('manifest.webmanifest', 'kalaqpar')), ENT_QUOTES, 'UTF-8') ?>">
     <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars(Pwa::asset('apple-touch-icon.png'), ENT_QUOTES, 'UTF-8') ?>">
-    <link rel="icon" href="<?= htmlspecialchars($base_path, ENT_QUOTES, 'UTF-8') ?>/assets/hero.svg" type="image/svg+xml">
+    <link rel="icon" href="<?= htmlspecialchars(PublicUrl::local(url('assets/hero.svg', 'kalaqpar')), ENT_QUOTES, 'UTF-8') ?>" type="image/svg+xml">
     <link rel="stylesheet" href="<?= htmlspecialchars(Pwa::asset('bootstrap.rtl.min.css'), ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(Pwa::asset('style.css'), ENT_QUOTES, 'UTF-8') ?>">
     <script defer src="<?= htmlspecialchars(Pwa::asset('app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>

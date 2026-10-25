@@ -1,4 +1,4 @@
-<?php $this->start('content') ?>
+<?php use Src\Modules\Kalaqpar\Services\PublicUrl; $this->start('content') ?>
 <main id="kalaqpar" class="kq" data-kq-busy="true" data-hero="<?= htmlspecialchars(\Src\Modules\Kalaqpar\Services\Pwa::asset('hero.svg'), ENT_QUOTES, 'UTF-8') ?>" data-base="<?= htmlspecialchars($base_path, ENT_QUOTES, 'UTF-8') ?>" data-error="<?= htmlspecialchars($initial_error, ENT_QUOTES, 'UTF-8') ?>" data-invitation="<?= htmlspecialchars($invitation, ENT_QUOTES, 'UTF-8') ?>">
     <header class="kq-header">
         <button id="kq-back" class="kq-icon" aria-label="بازگشت به خانه" hidden>›</button>
@@ -6,7 +6,7 @@
         <span class="kq-brand d-none" aria-hidden="true">↑</span>
     </header>
     <nav class="kq-pwa-actions d-none" aria-label="حساب اختیاری">
-        <a id="kq-account" class="kq-link" href="<?= htmlspecialchars($base_path, ENT_QUOTES, 'UTF-8') ?>/account">پروفایل و حساب</a>
+        <a id="kq-account" class="kq-link" href="<?= htmlspecialchars(PublicUrl::local(url('account', 'kalaqpar')), ENT_QUOTES, 'UTF-8') ?>">پروفایل و حساب</a>
     </nav>
     <div class="kq-pwa-actions d-none">
         <button id="kq-install" type="button" class="kq-link" hidden>نصب کلاغ‌پر</button>
